@@ -1,0 +1,40 @@
+
+(function ($) {
+    $.fn.infiniteJscroll = function () {
+
+        var $win = this;
+        var options = $.extend({
+            totalPage : 2,
+            numberPage : 1,
+            offset: 100,
+            topOfPage: function () {
+            },
+            bottomOfPage: function () {
+            },
+            pageInit: function () {
+            }
+        }, arguments[0] || {});
+
+        $(document).ready(function () {
+            options.pageInit.call(this);
+        });
+
+        $win.scroll(function () {
+
+            var scrollHeight = $(document).height() - 300;
+            var scrollPosition = $(window).height() + $(window).scrollTop();
+           
+            if ($win.scrollTop() == 0) {
+                options.topOfPage.call(this, options);
+            }
+            else if ($win.scrollTop() + options.offset >= $(document).height() - $(window).height() && options.totalPage != options.numberPage) {
+                if (scrollPosition >= scrollHeight) {
+                    
+                }
+                else {
+                    options.bottomOfPage.call(this, options);
+                } 
+            }
+        });
+    };
+}(jQuery));

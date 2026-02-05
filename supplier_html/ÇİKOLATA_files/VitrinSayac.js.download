@@ -1,0 +1,35 @@
+$('.vitrinBitis').each(function () {
+            var ID = this.id;
+            var bitisTar = $('#' + ID).data('date');
+            var bugun = new Date();
+           
+            var dateArr = bitisTar.split(/[^0-9]/);
+            var dateTmp = new Date(dateArr[2], dateArr[1] - 1, dateArr[0], dateArr[3], dateArr[4], dateArr[5]);
+         
+            if (dateTmp != "Invalid Date" && dateArr[0] != undefined) {
+                if (bugun.getDate() == dateArr[0] && bugun.getMonth()+1 == dateArr[1])
+                {
+                    $('#' + ID).countdown(dateTmp, function (event) {
+                        $(this).html(
+                            event.strftime(CounterLastDay)
+                        );
+                    });
+                }
+                else
+                {
+                    $('#' + ID).countdown(dateTmp, function (event) {
+                        if (event.strftime('%D') == 00) {
+                            $(this).html(event.strftime(CounterLast+' <span>%H</span>'+ CounterHour +' <span>%M</span>'+ CounterMinute));
+                        }
+                        else {
+                            $(this).html(event.strftime(CounterLast+' <span>%D</span>'+ CounterDay +' <span>%H</span>'+ CounterHour +' <span>%M</span>'+ CounterMinute));
+                        }
+                    });
+                }
+            }
+            else {
+                $('.' + ID).css("display", "none");
+                $('#' + ID).css("display", "none");
+            }
+           
+        });
