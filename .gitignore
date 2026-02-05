@@ -7,5 +7,6 @@ database/*.db-wal
 *.pdf
 *.zip
 *.tar.gz
+*.traineddata
 .DS_Store
 Thumbs.db
