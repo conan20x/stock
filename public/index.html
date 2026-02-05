@@ -1,0 +1,305 @@
+﻿<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cafe Stok Takip</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <div class="bg-layer"></div>
+
+  <header class="app-header">
+    <div class="title-block">
+      <p class="eyebrow">Cafe Envanter Yönetimi</p>
+      <h1>Stok Kontrol Paneli</h1>
+    </div>
+
+    <div class="auth-card">
+      <div id="authState" class="auth-state guest">Misafir: Sadece görüntüleme</div>
+
+      <form id="loginForm" class="auth-form">
+        <input id="loginUsername" name="username" placeholder="Kullanıcı adı" autocomplete="username" />
+        <input id="loginPassword" name="password" type="password" placeholder="Şifre" autocomplete="current-password" />
+        <button type="submit">Giriş Yap</button>
+      </form>
+
+      <button id="logoutBtn" class="btn subtle hidden" type="button">Çıkış Yap</button>
+    </div>
+  </header>
+
+  <section id="passwordGate" class="panel hidden password-panel">
+    <h2>Şifre Güncelleme Gerekli</h2>
+    <p>İlk girişten sonra devam etmek için şifrenizi değiştirin.</p>
+    <form id="passwordForm" class="password-form">
+      <input id="currentPassword" type="password" placeholder="Mevcut şifre" required />
+      <input id="newPassword" type="password" placeholder="Yeni şifre (en az 8 karakter)" required />
+      <button type="submit">Şifreyi Güncelle</button>
+    </form>
+  </section>
+
+  <main class="layout">
+    <section class="kpi-grid">
+      <article class="kpi">
+        <span class="label">Toplam Stok Değeri</span>
+        <strong id="kpiValue">₺0,00</strong>
+      </article>
+      <article class="kpi">
+        <span class="label">Toplam Adet</span>
+        <strong id="kpiQty">0</strong>
+      </article>
+      <article class="kpi">
+        <span class="label">Aktif Ürün</span>
+        <strong id="kpiActive">0</strong>
+      </article>
+      <article class="kpi warning">
+        <span class="label">Düşük Stok</span>
+        <strong id="kpiLow">0</strong>
+      </article>
+      <article class="kpi">
+        <span class="label">Azalabilir Stok</span>
+        <strong id="kpiWarning">0</strong>
+      </article>
+    </section>
+
+    <section class="panel alerts-panel">
+      <div class="panel-head">
+        <h2>Stok Uyarıları</h2>
+      </div>
+      <div class="alerts-grid">
+        <div>
+          <h3>Düşük Stok</h3>
+          <ul id="lowAlertsList" class="alert-list"></ul>
+        </div>
+        <div>
+          <h3>Azalabilir Stok</h3>
+          <ul id="warningAlertsList" class="alert-list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Ürün Stok Listesi</h2>
+        <div class="panel-actions">
+          <button id="openCreateBtn" class="btn hidden" type="button">Yeni Ürün</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <input id="searchInput" placeholder="Ürün adı veya stok kodu ara" />
+        <select id="categorySelect">
+          <option value="">Tüm Kategoriler</option>
+        </select>
+        <button id="reloadBtn" class="btn subtle" type="button">Yenile</button>
+      </div>
+
+      <div class="table-wrap main-table">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="image_path" class="sortable">Foto</th>
+              <th data-sort="stock_code" class="sortable">Stok Kodu</th>
+              <th data-sort="name" class="sortable">Ürün</th>
+              <th data-sort="category" class="sortable">Kategori</th>
+              <th data-sort="supplier_price" class="sortable">Fiyat</th>
+              <th data-sort="quantity" class="sortable">Adet</th>
+              <th data-sort="min_quantity" class="sortable">Kritik Min</th>
+              <th data-sort="stock_value" class="sortable">Stok Değeri</th>
+              <th data-sort="status" class="sortable">Durum</th>
+              <th id="actionHeader" data-sort="actions" class="sortable hidden">İşlemler</th>
+            </tr>
+          </thead>
+          <tbody id="productTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="table-footer">
+        <span id="paginationInfo">0 kayıt</span>
+        <div class="pager">
+          <button id="prevPageBtn" class="btn subtle" type="button">Önceki</button>
+          <button id="nextPageBtn" class="btn subtle" type="button">Sonraki</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="pdfPanel" class="panel hidden">
+      <div class="panel-head">
+        <h2>PDF Stok Tarama</h2>
+      </div>
+      <form id="pdfPreviewForm" class="pdf-upload-form">
+        <input id="pdfFileInput" type="file" accept="application/pdf,.pdf" required />
+        <button type="submit">PDF Tara</button>
+      </form>
+      <p class="hint">PDF taraması sonrası eklenecek stokları onaylamadan önce düzenleyebilirsiniz.</p>
+    </section>
+
+    <section id="usersPanel" class="panel hidden">
+      <div class="panel-head">
+        <h2>Kullanıcı Yönetimi (Admin)</h2>
+        <button id="refreshUsersBtn" class="btn subtle" type="button">Kullanıcıları Yenile</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Kullanıcı</th>
+              <th>Rol</th>
+              <th>Aktif</th>
+              <th>Stok</th>
+              <th>Ürün Düzenle</th>
+              <th>Ürün Sil</th>
+              <th>Ürün Ekle</th>
+              <th>Log</th>
+              <th>Kullanıcı Yönetimi</th>
+              <th>PDF Tara</th>
+              <th>Şifre Sıfırla</th>
+              <th>Kaydet</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="logsPanel" class="panel hidden">
+      <div class="panel-head">
+        <h2>Aktivite Kayıtları</h2>
+        <div class="inline-form compact">
+          <select id="logActionFilter">
+            <option value="">Tüm İşlemler</option>
+            <option value="LOGIN">LOGIN</option>
+            <option value="LOGOUT">LOGOUT</option>
+            <option value="PASSWORD_CHANGE">PASSWORD_CHANGE</option>
+            <option value="INSERT">INSERT</option>
+            <option value="UPDATE">UPDATE</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+          <button id="loadLogsBtn" class="btn subtle" type="button">Kayıtları Yükle</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>Kullanıcı</th>
+              <th>İşlem</th>
+              <th>Tablo</th>
+              <th>Kayıt</th>
+              <th>Önce</th>
+              <th>Sonra</th>
+              <th>Kaynak</th>
+            </tr>
+          </thead>
+          <tbody id="logTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <section id="productModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="panel-head">
+        <h2 id="productModalTitle">Ürün Düzenle</h2>
+        <button id="closeProductModalBtn" class="btn subtle" type="button">Kapat</button>
+      </div>
+
+      <form id="productForm" class="modal-grid">
+        <input type="hidden" id="productId" />
+        <label>Stok Kodu
+          <input id="productStockCode" required />
+        </label>
+        <label>Ürün Adı
+          <input id="productName" required />
+        </label>
+        <label>Kategori
+          <select id="productCategory" required></select>
+        </label>
+        <label>Fiyat (₺)
+          <input id="productPrice" type="number" step="0.01" min="0" required />
+        </label>
+        <label>Birim
+          <input id="productUnit" value="adet" />
+        </label>
+        <label>Kritik Min
+          <input id="productMinQuantity" type="number" min="0" value="5" required />
+        </label>
+        <label id="imagePathWrap">Resim Yolu
+          <input id="productImagePath" placeholder="ÇAY-KAHVE-İÇECEK_files/500x500_thumb_1453.jpg" />
+        </label>
+
+        <div class="modal-actions">
+          <button id="submitProductBtn" type="submit">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section id="stockModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card compact">
+      <div class="panel-head">
+        <h2>Stok Güncelle</h2>
+        <button id="closeStockModalBtn" class="btn subtle" type="button">Kapat</button>
+      </div>
+
+      <form id="stockForm" class="stock-form">
+        <input type="hidden" id="stockProductId" />
+        <div class="stock-stepper">
+          <button type="button" class="btn subtle" data-delta="-1">-1</button>
+          <button type="button" class="btn subtle" data-delta="-5">-5</button>
+          <input id="stockQuantity" type="number" min="0" required placeholder="Adet" />
+          <button type="button" class="btn subtle" data-delta="1">+1</button>
+          <button type="button" class="btn subtle" data-delta="5">+5</button>
+        </div>
+        <button type="submit">Stoku Kaydet</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="pdfPreviewModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card large">
+      <div class="panel-head">
+        <h2>PDF Tarama Önizleme</h2>
+        <button id="closePdfPreviewBtn" class="btn subtle" type="button">Kapat</button>
+      </div>
+
+      <p id="pdfPreviewInfo" class="hint"></p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Stok Kodu</th>
+              <th>Ürün</th>
+              <th>Mevcut Adet</th>
+              <th>Mevcut KG</th>
+              <th>Eklenecek</th>
+              <th>Eklenecek KG</th>
+              <th>Yeni Adet</th>
+              <th>Yeni KG</th>
+              <th>Mevcut Fiyat (Birim)</th>
+              <th>PDF Birim Fiyat</th>
+              <th>Yeni Fiyat (Toplam)</th>
+            </tr>
+          </thead>
+          <tbody id="pdfPreviewBody"></tbody>
+        </table>
+      </div>
+
+      <div class="modal-actions spaced">
+        <button id="applyPdfBtn" type="button">Onayla ve Uygula</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/js/app.js" defer></script>
+</body>
+</html>
