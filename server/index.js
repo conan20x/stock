@@ -21,7 +21,7 @@ const PORT = Number.parseInt(process.env.PORT, 10) || 3000;
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 const SOURCE_DIR = process.env.SOURCE_HTML_DIR
   ? path.resolve(process.env.SOURCE_HTML_DIR)
-  : path.resolve(__dirname, '../../');
+  : path.resolve(__dirname, '../supplier_html');
 const PUBLIC_DIR = path.resolve(__dirname, '../public');
 
 const ALLOWED_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif']);

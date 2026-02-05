@@ -6,7 +6,9 @@ const dbPath = path.join(__dirname, '../database/cafe_stock.db');
 const db = new Database(dbPath);
 db.pragma('foreign_keys = ON');
 
-const sourceDir = path.resolve(__dirname, '../../');
+const sourceDir = process.env.SOURCE_HTML_DIR
+  ? path.resolve(process.env.SOURCE_HTML_DIR)
+  : path.resolve(__dirname, '../supplier_html');
 console.log('Starting product import...');
 console.log(`Source directory: ${sourceDir}`);
 
