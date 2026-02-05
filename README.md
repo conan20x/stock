@@ -25,11 +25,13 @@ TRUST_PROXY=1
 COOKIE_SECURE=1
 DISABLE_GUEST=1
 SOURCE_HTML_DIR=./supplier_html
+DATABASE_DIR=/var/data
 ```
 
 Notlar:
 - `COOKIE_SECURE=1` HTTPS altında cookie güvenliği içindir.
 - `DISABLE_GUEST=1` ile login olmadan erişim kapatılır.
+ - Render kullanıyorsanız `DATABASE_DIR=/var/data` verip kalıcı disk bağlayın.
 
 ## Nginx Reverse Proxy Örneği (/boston)
 ```
