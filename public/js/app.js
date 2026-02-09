@@ -11,6 +11,9 @@
     category: '',
     sort: 'supplier_price',
     order: 'desc'
+  },
+  ui: {
+    adminOpen: false
   }
 };
 
@@ -38,6 +41,7 @@ const els = {
   searchInput: document.getElementById('searchInput'),
   categorySelect: document.getElementById('categorySelect'),
   reloadBtn: document.getElementById('reloadBtn'),
+  toggleAdminBtn: document.getElementById('toggleAdminBtn'),
   openCreateBtn: document.getElementById('openCreateBtn'),
   actionHeader: document.getElementById('actionHeader'),
   productTableBody: document.getElementById('productTableBody'),
@@ -112,6 +116,19 @@ function showActionColumn() {
       !state.user.must_change_password &&
       (can('can_edit_product') || can('can_update_stock') || can('can_delete_product'))
   );
+}
+
+function hasAdminTools() {
+  return can('can_view_logs') || can('can_manage_users') || can('can_scan_pdf');
+}
+
+function updateAdminToggleUI() {
+  const canOperate = state.user && !state.user.must_change_password;
+  const visible = Boolean(canOperate && hasAdminTools());
+  els.toggleAdminBtn.classList.toggle('hidden', !visible);
+  if (visible) {
+    els.toggleAdminBtn.textContent = state.ui.adminOpen ? 'Yönetim Panelini Gizle' : 'Yönetim Paneli';
+  }
 }
 
 function statusLabel(status) {
@@ -254,13 +271,15 @@ function updateAuthUI() {
 
   const canOperate = state.user && !mustChangePassword;
   const showActions = showActionColumn();
+  const showAdminPanels = Boolean(canOperate && state.ui.adminOpen);
 
   els.actionHeader.classList.toggle('hidden', !showActions);
   els.openCreateBtn.classList.toggle('hidden', !(canOperate && can('can_create_product')));
-  els.logsPanel.classList.toggle('hidden', !(canOperate && can('can_view_logs')));
-  els.usersPanel.classList.toggle('hidden', !(canOperate && can('can_manage_users')));
-  els.pdfPanel.classList.toggle('hidden', !(canOperate && can('can_scan_pdf')));
+  els.logsPanel.classList.toggle('hidden', !(showAdminPanels && can('can_view_logs')));
+  els.usersPanel.classList.toggle('hidden', !(showAdminPanels && can('can_manage_users')));
+  els.pdfPanel.classList.toggle('hidden', !(showAdminPanels && can('can_scan_pdf')));
   els.imagePathWrap.classList.toggle('hidden', !can('can_edit_product'));
+  updateAdminToggleUI();
 }
 
 async function refreshSession() {
@@ -270,6 +289,7 @@ async function refreshSession() {
   } catch (_err) {
     state.user = null;
     state.token = null;
+    state.ui.adminOpen = false;
   }
   updateAuthUI();
 }
@@ -827,11 +847,11 @@ async function handleLogin(event) {
     updateAuthUI();
     await Promise.all([loadSummary(), loadProducts(), loadAlerts()]);
 
-    if (can('can_view_logs') && !state.user.must_change_password) {
+    if (state.ui.adminOpen && can('can_view_logs') && !state.user.must_change_password) {
       await loadLogs();
     }
 
-    if (can('can_manage_users') && !state.user.must_change_password) {
+    if (state.ui.adminOpen && can('can_manage_users') && !state.user.must_change_password) {
       await loadUsers();
     }
 
@@ -850,6 +870,7 @@ async function handleLogout() {
 
   state.user = null;
   state.token = null;
+  state.ui.adminOpen = false;
   state.filters = {
     search: '',
     category: '',
@@ -888,11 +909,11 @@ async function handlePasswordChange(event) {
 
     await Promise.all([loadSummary(), loadProducts(), loadAlerts()]);
 
-    if (can('can_view_logs')) {
+    if (state.ui.adminOpen && can('can_view_logs')) {
       await loadLogs();
     }
 
-    if (can('can_manage_users')) {
+    if (state.ui.adminOpen && can('can_manage_users')) {
       await loadUsers();
     }
 
@@ -958,6 +979,22 @@ function bindEvents() {
   els.reloadBtn.addEventListener('click', () => {
     state.pagination.page = 1;
     Promise.all([loadSummary(), loadProducts(), loadAlerts()]).catch((err) => showToast(err.message, 'error'));
+  });
+
+  els.toggleAdminBtn.addEventListener('click', () => {
+    state.ui.adminOpen = !state.ui.adminOpen;
+    updateAuthUI();
+
+    if (state.ui.adminOpen && state.user && !state.user.must_change_password) {
+      const jobs = [];
+      if (can('can_view_logs')) {
+        jobs.push(loadLogs());
+      }
+      if (can('can_manage_users')) {
+        jobs.push(loadUsers());
+      }
+      Promise.all(jobs).catch((err) => showToast(err.message, 'error'));
+    }
   });
 
   let searchTimer;
@@ -1088,7 +1125,7 @@ async function bootstrap() {
     await loadCategories();
     await Promise.all([loadSummary(), loadProducts(), loadAlerts()]);
 
-    if (state.user && !state.user.must_change_password) {
+    if (state.ui.adminOpen && state.user && !state.user.must_change_password) {
       const jobs = [];
       if (can('can_view_logs')) {
         jobs.push(loadLogs());

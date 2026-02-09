@@ -270,7 +270,32 @@ table {
 }
 
 #usersPanel table {
-  min-width: 1240px;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+#usersPanel th,
+#usersPanel td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.78rem;
+}
+
+#usersPanel .row-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+#usersPanel .row-actions input {
+  min-width: 110px;
+}
+
+#usersPanel .btn {
+  padding: 6px 8px;
+  font-size: 0.72rem;
 }
 
 #logsPanel table {
