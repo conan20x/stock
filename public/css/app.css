@@ -625,6 +625,55 @@ label {
   }
 }
 
+@media (max-width: 760px) {
+  .main-table table {
+    min-width: 0;
+  }
+
+  .main-table thead {
+    display: none;
+  }
+
+  .main-table tbody tr {
+    display: grid;
+    gap: 6px;
+    padding: 10px 8px;
+    border-bottom: 1px solid rgba(38, 56, 77, 0.75);
+  }
+
+  .main-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 4px;
+    border-bottom: none;
+    text-align: right;
+  }
+
+  .main-table tbody td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: left;
+  }
+
+  .main-table tbody td[data-label='Foto']::before {
+    content: '';
+  }
+
+  .main-table tbody td[data-label='Foto'] {
+    justify-content: flex-start;
+  }
+
+  .main-table tbody td[data-label='İşlemler'] {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
 @media (max-width: 620px) {
   .kpi-grid {
     grid-template-columns: 1fr;

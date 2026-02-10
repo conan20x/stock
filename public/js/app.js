@@ -426,16 +426,16 @@ function productRowTemplate(product) {
 
   return `
     <tr>
-      <td>${imageHtml}</td>
-      <td class="mono">${escapeHtml(product.stock_code)}</td>
-      <td>${escapeHtml(product.name)}</td>
-      <td>${escapeHtml(product.category_name)}</td>
-      <td class="mono">${currencyTRY(product.supplier_price_try)}</td>
-      <td class="mono">${quantityCell}</td>
-      <td class="mono">${numberTR(product.min_quantity)}</td>
-      <td class="mono">${currencyTRY(product.stock_value_try)}</td>
-      <td><span class="tag ${status.cls}">${status.text}</span></td>
-      <td class="${showActionColumn() ? '' : 'hidden'}">${actionCell}</td>
+      <td data-label="Foto">${imageHtml}</td>
+      <td data-label="Stok Kodu" class="mono">${escapeHtml(product.stock_code)}</td>
+      <td data-label="Ürün">${escapeHtml(product.name)}</td>
+      <td data-label="Kategori">${escapeHtml(product.category_name)}</td>
+      <td data-label="Fiyat" class="mono">${currencyTRY(product.supplier_price_try)}</td>
+      <td data-label="Adet" class="mono">${quantityCell}</td>
+      <td data-label="Kritik Min" class="mono">${numberTR(product.min_quantity)}</td>
+      <td data-label="Stok Değeri" class="mono">${currencyTRY(product.stock_value_try)}</td>
+      <td data-label="Durum"><span class="tag ${status.cls}">${status.text}</span></td>
+      <td data-label="İşlemler" class="${showActionColumn() ? '' : 'hidden'}">${actionCell}</td>
     </tr>
   `;
 }
