@@ -46,8 +46,10 @@ body {
 .app-header,
 .layout,
 #passwordGate {
-  width: min(1320px, calc(100% - 28px));
+  width: 100%;
+  max-width: 1320px;
   margin-inline: auto;
+  padding-inline: 14px;
   position: relative;
   z-index: 1;
 }
@@ -216,6 +218,7 @@ button:hover,
 
 .panel {
   padding: 12px;
+  min-width: 0;
 }
 
 .panel-head {
@@ -224,6 +227,8 @@ button:hover,
   align-items: center;
   gap: 12px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .panel-head h2 {
@@ -250,6 +255,7 @@ button:hover,
   overflow-x: auto;
   padding-bottom: 6px;
   margin-bottom: 8px;
+  max-width: 100%;
 }
 
 .category-tab {
@@ -280,6 +286,7 @@ button:hover,
   border-radius: 10px;
   overflow: auto;
   max-width: 100%;
+  width: 100%;
 }
 
 .main-table {
