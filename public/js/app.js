@@ -241,7 +241,9 @@ async function api(path, options = {}) {
 
   init.headers = headers;
 
-  const response = await fetch(path, init);
+  const prefix = basePath();
+  const normalized = path.startsWith('/') ? path.slice(1) : path;
+  const response = await fetch(`${prefix}${normalized}`, init);
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
