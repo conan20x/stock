@@ -10,7 +10,9 @@ const importService = makeImportService(db);
 
 router.post('/supplier-html', verifySession, requirePasswordChangeComplete, isAdmin, (req, res) => {
   try {
-    const sourceDir = path.resolve(__dirname, '../../../');
+    const sourceDir = process.env.SOURCE_HTML_DIR
+      ? path.resolve(process.env.SOURCE_HTML_DIR)
+      : path.resolve(__dirname, '../../supplier_html');
     const result = importService.importFromHtml(sourceDir, req.user.id);
 
     res.json({

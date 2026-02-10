@@ -243,6 +243,32 @@ button:hover,
   margin-bottom: 10px;
 }
 
+.category-tabs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.category-tab {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  background: #0d1722;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.category-tab.active {
+  color: #0b151f;
+  background: var(--accent);
+  border-color: transparent;
+}
+
 .inline-form.compact {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -304,6 +330,10 @@ table {
 
 #pdfPreviewModal table {
   min-width: 1080px;
+}
+
+.scroll-sentinel {
+  height: 1px;
 }
 
 thead {
@@ -459,6 +489,20 @@ th.sorted-desc::after {
   margin-bottom: 8px;
 }
 
+.user-create-form {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.inline-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .modal {
   position: fixed;
   inset: 0;
@@ -550,6 +594,10 @@ label {
   .filters,
   .pdf-upload-form,
   .inline-form.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .user-create-form {
     grid-template-columns: 1fr;
   }
 

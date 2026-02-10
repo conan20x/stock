@@ -14,6 +14,42 @@ function toBooleanNumber(value, fallback = 0) {
   return value ? 1 : 0;
 }
 
+function rolePermissions(role) {
+  if (role === 'admin') {
+    return {
+      can_create_product: 1,
+      can_edit_product: 1,
+      can_update_stock: 1,
+      can_delete_product: 1,
+      can_view_logs: 1,
+      can_manage_users: 1,
+      can_scan_pdf: 1
+    };
+  }
+
+  if (role === 'manager') {
+    return {
+      can_create_product: 0,
+      can_edit_product: 0,
+      can_update_stock: 1,
+      can_delete_product: 0,
+      can_view_logs: 0,
+      can_manage_users: 0,
+      can_scan_pdf: 1
+    };
+  }
+
+  return {
+    can_create_product: 0,
+    can_edit_product: 0,
+    can_update_stock: 0,
+    can_delete_product: 0,
+    can_view_logs: 0,
+    can_manage_users: 0,
+    can_scan_pdf: 0
+  };
+}
+
 router.use(verifySession, requirePasswordChangeComplete, isAdmin);
 
 router.get('/', (_req, res) => {
@@ -47,6 +83,94 @@ router.get('/', (_req, res) => {
   }
 });
 
+router.post('/', async (req, res) => {
+  try {
+    const username = String(req.body.username || '').trim();
+    const password = String(req.body.password || '');
+    const role = String(req.body.role || 'manager');
+    const allowedRoles = new Set(['admin', 'manager', 'guest']);
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Kullanıcı adı ve şifre zorunludur.' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Şifre en az 8 karakter olmalı.' });
+    }
+
+    if (!allowedRoles.has(role)) {
+      return res.status(400).json({ error: 'Geçersiz rol.' });
+    }
+
+    const isActive = toBooleanNumber(req.body.is_active, 1);
+    const perms = rolePermissions(role);
+    const hash = await bcrypt.hash(password, SALT_ROUNDS);
+
+    const result = db.prepare(`
+      INSERT INTO users (
+        username,
+        password_hash,
+        email,
+        role,
+        must_change_password,
+        is_active,
+        can_create_product,
+        can_edit_product,
+        can_update_stock,
+        can_delete_product,
+        can_view_logs,
+        can_manage_users,
+        can_scan_pdf,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, NULL, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).run(
+      username,
+      hash,
+      role,
+      isActive,
+      perms.can_create_product,
+      perms.can_edit_product,
+      perms.can_update_stock,
+      perms.can_delete_product,
+      perms.can_view_logs,
+      perms.can_manage_users,
+      perms.can_scan_pdf
+    );
+
+    const created = db.prepare(`
+      SELECT
+        id,
+        username,
+        email,
+        role,
+        is_active,
+        must_change_password,
+        can_create_product,
+        can_edit_product,
+        can_update_stock,
+        can_delete_product,
+        can_view_logs,
+        can_manage_users,
+        can_scan_pdf,
+        last_login,
+        created_at,
+        updated_at
+      FROM users
+      WHERE id = ?
+    `).get(result.lastInsertRowid);
+
+    return res.status(201).json({ success: true, user: created });
+  } catch (err) {
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(400).json({ error: 'Bu kullanıcı adı zaten kullanılıyor.' });
+    }
+    console.error('Create user error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.put('/:id', (req, res) => {
   try {
     const userId = Number.parseInt(req.params.id, 10);
@@ -59,8 +183,12 @@ router.put('/:id', (req, res) => {
       return res.status(404).json({ error: 'Kullanıcı bulunamadı.' });
     }
 
+    const username = String(req.body.username || targetUser.username).trim();
     const role = String(req.body.role || targetUser.role);
     const allowedRoles = new Set(['admin', 'manager', 'guest']);
+    if (!username) {
+      return res.status(400).json({ error: 'Kullanıcı adı zorunludur.' });
+    }
     if (!allowedRoles.has(role)) {
       return res.status(400).json({ error: 'Geçersiz rol.' });
     }
@@ -84,6 +212,7 @@ router.put('/:id', (req, res) => {
     db.prepare(`
       UPDATE users
       SET
+        username = ?,
         role = ?,
         is_active = ?,
         can_create_product = ?,
@@ -96,6 +225,7 @@ router.put('/:id', (req, res) => {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(
+      username,
       role,
       isActive,
       perms.can_create_product,
@@ -132,6 +262,9 @@ router.put('/:id', (req, res) => {
 
     res.json({ success: true, user: updated });
   } catch (err) {
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(400).json({ error: 'Bu kullanıcı adı zaten kullanılıyor.' });
+    }
     console.error('Update user error:', err);
     res.status(500).json({ error: 'Server error' });
   }

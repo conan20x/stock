@@ -4,24 +4,31 @@
   categories: [],
   products: [],
   users: [],
-  pdfPreview: [],
-  pagination: { page: 1, pages: 1, total: 0, limit: 20 },
+  pagination: { page: 1, pages: 1, total: 0, limit: 50 },
   filters: {
     search: '',
     category: '',
     sort: 'supplier_price',
     order: 'desc'
   },
-  ui: {
-    adminOpen: false
+  loading: {
+    products: false
   }
 };
 
+const ADMIN_ROUTE_REGEX = /\/admin\/?$/;
+const isAdminRoute = ADMIN_ROUTE_REGEX.test(window.location.pathname);
+
 const els = {
+  mainPage: document.getElementById('mainPage'),
+  adminPage: document.getElementById('adminPage'),
+  adminDenied: document.getElementById('adminDenied'),
   authState: document.getElementById('authState'),
   loginForm: document.getElementById('loginForm'),
   loginUsername: document.getElementById('loginUsername'),
   loginPassword: document.getElementById('loginPassword'),
+  adminLink: document.getElementById('adminLink'),
+  adminBackLink: document.getElementById('adminBackLink'),
   logoutBtn: document.getElementById('logoutBtn'),
 
   passwordGate: document.getElementById('passwordGate'),
@@ -40,14 +47,15 @@ const els = {
 
   searchInput: document.getElementById('searchInput'),
   categorySelect: document.getElementById('categorySelect'),
+  categoryTabs: document.getElementById('categoryTabs'),
   reloadBtn: document.getElementById('reloadBtn'),
-  toggleAdminBtn: document.getElementById('toggleAdminBtn'),
   openCreateBtn: document.getElementById('openCreateBtn'),
   actionHeader: document.getElementById('actionHeader'),
+  productTableWrap: document.getElementById('productTableWrap'),
   productTableBody: document.getElementById('productTableBody'),
+  scrollSentinel: document.getElementById('scrollSentinel'),
   paginationInfo: document.getElementById('paginationInfo'),
-  prevPageBtn: document.getElementById('prevPageBtn'),
-  nextPageBtn: document.getElementById('nextPageBtn'),
+  loadingIndicator: document.getElementById('loadingIndicator'),
   sortableHeaders: Array.from(document.querySelectorAll('th.sortable')),
 
   logsPanel: document.getElementById('logsPanel'),
@@ -58,15 +66,11 @@ const els = {
   usersPanel: document.getElementById('usersPanel'),
   usersTableBody: document.getElementById('usersTableBody'),
   refreshUsersBtn: document.getElementById('refreshUsersBtn'),
-
-  pdfPanel: document.getElementById('pdfPanel'),
-  pdfPreviewForm: document.getElementById('pdfPreviewForm'),
-  pdfFileInput: document.getElementById('pdfFileInput'),
-  pdfPreviewModal: document.getElementById('pdfPreviewModal'),
-  closePdfPreviewBtn: document.getElementById('closePdfPreviewBtn'),
-  pdfPreviewInfo: document.getElementById('pdfPreviewInfo'),
-  pdfPreviewBody: document.getElementById('pdfPreviewBody'),
-  applyPdfBtn: document.getElementById('applyPdfBtn'),
+  createUserForm: document.getElementById('createUserForm'),
+  createUsername: document.getElementById('createUsername'),
+  createPassword: document.getElementById('createPassword'),
+  createRole: document.getElementById('createRole'),
+  createActive: document.getElementById('createActive'),
 
   productModal: document.getElementById('productModal'),
   productModalTitle: document.getElementById('productModalTitle'),
@@ -118,19 +122,28 @@ function showActionColumn() {
   );
 }
 
-function hasAdminTools() {
-  return can('can_view_logs') || can('can_manage_users') || can('can_scan_pdf');
+function basePath() {
+  const path = window.location.pathname;
+  const cleaned = isAdminRoute ? path.replace(ADMIN_ROUTE_REGEX, '/') : path;
+  return cleaned.endsWith('/') ? cleaned : `${cleaned}/`;
 }
 
-function updateAdminToggleUI() {
-  const canOperate = state.user && !state.user.must_change_password;
-  const visible = Boolean(canOperate && hasAdminTools());
-  els.toggleAdminBtn.classList.toggle('hidden', !visible);
-  if (visible) {
-    els.toggleAdminBtn.textContent = state.ui.adminOpen ? 'Yönetim Panelini Gizle' : 'Yönetim Paneli';
+function updateRouteUI() {
+  if (els.mainPage) {
+    els.mainPage.classList.toggle('hidden', isAdminRoute);
+  }
+  if (els.adminPage) {
+    els.adminPage.classList.toggle('hidden', !isAdminRoute);
+  }
+
+  const base = basePath();
+  if (els.adminLink) {
+    els.adminLink.href = `${base}admin`;
+  }
+  if (els.adminBackLink) {
+    els.adminBackLink.href = base;
   }
 }
-
 function statusLabel(status) {
   if (status === 'dusuk') {
     return { text: 'Düşük', cls: 'low' };
@@ -271,15 +284,23 @@ function updateAuthUI() {
 
   const canOperate = state.user && !mustChangePassword;
   const showActions = showActionColumn();
-  const showAdminPanels = Boolean(canOperate && state.ui.adminOpen);
+  const adminAllowed = Boolean(canOperate && isAdmin());
 
   els.actionHeader.classList.toggle('hidden', !showActions);
   els.openCreateBtn.classList.toggle('hidden', !(canOperate && can('can_create_product')));
-  els.logsPanel.classList.toggle('hidden', !(showAdminPanels && can('can_view_logs')));
-  els.usersPanel.classList.toggle('hidden', !(showAdminPanels && can('can_manage_users')));
-  els.pdfPanel.classList.toggle('hidden', !(showAdminPanels && can('can_scan_pdf')));
+  els.logsPanel.classList.toggle('hidden', !(adminAllowed && can('can_view_logs')));
+  els.usersPanel.classList.toggle('hidden', !(adminAllowed && can('can_manage_users')));
+  if (els.adminDenied) {
+    els.adminDenied.classList.toggle('hidden', !isAdminRoute || adminAllowed);
+  }
   els.imagePathWrap.classList.toggle('hidden', !can('can_edit_product'));
-  updateAdminToggleUI();
+
+  if (els.adminLink) {
+    els.adminLink.classList.toggle('hidden', !(canOperate && isAdmin() && !isAdminRoute));
+  }
+  if (els.adminBackLink) {
+    els.adminBackLink.classList.toggle('hidden', !isAdminRoute);
+  }
 }
 
 async function refreshSession() {
@@ -289,8 +310,7 @@ async function refreshSession() {
   } catch (_err) {
     state.user = null;
     state.token = null;
-    state.ui.adminOpen = false;
-  }
+}
   updateAuthUI();
 }
 
@@ -308,10 +328,33 @@ function renderCategoryOptions() {
   els.productCategory.innerHTML = modalOptions.join('');
 }
 
+function renderCategoryTabs() {
+  if (!els.categoryTabs) {
+    return;
+  }
+
+  const active = String(state.filters.category || '');
+  const tabs = [
+    { id: '', label: 'Tümü' },
+    ...state.categories.map((category) => ({
+      id: String(category.id),
+      label: category.name
+    }))
+  ];
+
+  els.categoryTabs.innerHTML = tabs
+    .map(
+      (tab) =>
+        `<button type="button" class="category-tab ${tab.id === active ? 'active' : ''}" data-category="${tab.id}">${escapeHtml(tab.label)}</button>`
+    )
+    .join('');
+}
+
 async function loadCategories() {
   const data = await api('/api/catalog/categories');
   state.categories = data.categories || [];
   renderCategoryOptions();
+  renderCategoryTabs();
 }
 
 function renderSummary(summary) {
@@ -405,9 +448,8 @@ function renderProducts() {
   }
 
   const { page, pages, total } = state.pagination;
-  els.paginationInfo.textContent = `${numberTR(total)} kayıt • Sayfa ${page}/${pages}`;
-  els.prevPageBtn.disabled = page <= 1;
-  els.nextPageBtn.disabled = page >= pages;
+  const loaded = state.products.length;
+  els.paginationInfo.textContent = `${numberTR(loaded)} / ${numberTR(total)} kayıt • Sayfa ${page}/${pages}`;
 }
 
 function buildCatalogQuery() {
@@ -427,16 +469,68 @@ function buildCatalogQuery() {
   return params.toString();
 }
 
-async function loadProducts() {
+async function loadProducts({ reset = false } = {}) {
+  if (state.loading.products) {
+    return;
+  }
+
+  if (reset) {
+    state.pagination.page = 1;
+    state.products = [];
+  }
+
   const query = buildCatalogQuery();
-  const data = await api(`/api/catalog?${query}`);
-  state.products = data.products || [];
-  state.pagination = data.pagination || { page: 1, pages: 1, total: 0, limit: 20 };
-  renderProducts();
-  updateHeaderSortUI();
+  state.loading.products = true;
+  if (els.loadingIndicator) {
+    els.loadingIndicator.classList.remove('hidden');
+  }
+
+  try {
+    const data = await api(`/api/catalog?${query}`);
+    const incoming = data.products || [];
+
+    if (reset) {
+      state.products = incoming;
+    } else {
+      state.products.push(...incoming);
+    }
+
+    state.pagination = data.pagination || { page: 1, pages: 1, total: 0, limit: state.pagination.limit };
+
+    if (reset) {
+      renderProducts();
+    } else if (incoming.length > 0) {
+      els.productTableBody.insertAdjacentHTML('beforeend', incoming.map(productRowTemplate).join(''));
+    }
+
+    updateHeaderSortUI();
+    const { page, pages, total } = state.pagination;
+    const loaded = state.products.length;
+    els.paginationInfo.textContent = `${numberTR(loaded)} / ${numberTR(total)} kayıt • Sayfa ${page}/${pages}`;
+  } finally {
+    state.loading.products = false;
+    if (els.loadingIndicator) {
+      els.loadingIndicator.classList.add('hidden');
+    }
+  }
+}
+
+function canLoadMoreProducts() {
+  return state.pagination.page < state.pagination.pages;
+}
+
+async function loadMoreProducts() {
+  if (state.loading.products || !canLoadMoreProducts()) {
+    return;
+  }
+  state.pagination.page += 1;
+  await loadProducts();
 }
 
 async function loadLogs() {
+  if (!isAdminRoute) {
+    return;
+  }
   if (!can('can_view_logs') || state.user?.must_change_password) {
     return;
   }
@@ -477,7 +571,7 @@ async function loadLogs() {
 function userRowTemplate(user) {
   return `
     <tr data-user-id="${user.id}">
-      <td>${escapeHtml(user.username)}</td>
+      <td><input data-field="username" value="${escapeHtml(user.username)}" /></td>
       <td>
         <select data-field="role">
           <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
@@ -505,6 +599,9 @@ function userRowTemplate(user) {
 }
 
 async function loadUsers() {
+  if (!isAdminRoute) {
+    return;
+  }
   if (!can('can_manage_users') || state.user?.must_change_password) {
     return;
   }
@@ -576,10 +673,6 @@ function closeStockModal() {
   els.stockModal.classList.add('hidden');
 }
 
-function closePdfPreviewModal() {
-  els.pdfPreviewModal.classList.add('hidden');
-}
-
 async function createOrUpdateProduct(event) {
   event.preventDefault();
 
@@ -621,7 +714,7 @@ async function createOrUpdateProduct(event) {
     }
 
     closeProductModal();
-    await Promise.all([loadProducts(), loadAlerts()]);
+    await Promise.all([loadProducts({ reset: true }), loadAlerts()]);
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -640,7 +733,7 @@ async function submitStock(event) {
 
     renderSummary(response.summary);
     closeStockModal();
-    await Promise.all([loadProducts(), loadAlerts()]);
+    await Promise.all([loadProducts({ reset: true }), loadAlerts()]);
     showToast('Stok güncellendi.', 'success');
   } catch (err) {
     showToast(err.message, 'error');
@@ -655,132 +748,8 @@ async function deleteProduct(productId) {
   try {
     const response = await api(`/api/products/${productId}`, { method: 'DELETE' });
     renderSummary(response.summary);
-    await Promise.all([loadProducts(), loadAlerts()]);
+    await Promise.all([loadProducts({ reset: true }), loadAlerts()]);
     showToast('Ürün silindi.', 'success');
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
-}
-
-function renderPdfPreview() {
-  if (!state.pdfPreview.length) {
-    els.pdfPreviewBody.innerHTML = '<tr><td colspan="11"><small>Eşleşen ürün bulunamadı.</small></td></tr>';
-    return;
-  }
-
-  els.pdfPreviewBody.innerHTML = state.pdfPreview
-    .map((row, index) => {
-      const currentQuantity = Number(row.current_quantity || 0);
-      const addQuantity = Math.max(0, Math.round(Number(row.add_quantity || 0)));
-      const packageKg = parseLocaleNumber(row.package_kg, null);
-      const currentKg = packageKg ? Number((currentQuantity * packageKg).toFixed(3)) : null;
-      const addKg = packageKg ? Number((addQuantity * packageKg).toFixed(3)) : null;
-      const newQuantityEstimate = currentQuantity + addQuantity;
-      const newKgEstimate = packageKg ? Number((newQuantityEstimate * packageKg).toFixed(3)) : null;
-
-      const currentUnitPrice = Number(row.current_unit_price || 0);
-      const editableUnitPrice = parseLocaleNumber(
-        row.new_unit_price === undefined ? row.pdf_unit_price : row.new_unit_price,
-        null
-      );
-
-      const priceQty = row.order_unit === 'KG' && packageKg ? addQuantity * packageKg : addQuantity;
-      const totalPrice = editableUnitPrice === null ? null : Number((priceQty * editableUnitPrice).toFixed(2));
-
-      return `
-      <tr>
-        <td class="mono">${escapeHtml(row.stock_code)}</td>
-        <td>${escapeHtml(row.name)}</td>
-        <td class="mono">${numberTR(currentQuantity)}</td>
-        <td class="mono">${currentKg === null ? '-' : formatKg(currentKg)}</td>
-        <td><input type="number" min="0" data-pdf-field="add_quantity" data-index="${index}" value="${addQuantity}" /></td>
-        <td class="mono">${addKg === null ? '-' : formatKg(addKg)}</td>
-        <td class="mono">${numberTR(newQuantityEstimate)}</td>
-        <td class="mono">${newKgEstimate === null ? '-' : formatKg(newKgEstimate)}</td>
-        <td class="mono">${currencyTRY(currentUnitPrice)}</td>
-        <td>
-          <input type="number" min="0" step="0.01" data-pdf-field="new_unit_price" data-index="${index}" value="${editableUnitPrice ?? ''}" ${
-            can('can_edit_product') ? '' : 'disabled'
-          } />
-        </td>
-        <td class="mono">${totalPrice === null ? '-' : currencyTRY(totalPrice)}</td>
-      </tr>
-    `;
-    })
-    .join('');
-}
-
-async function previewPdf(event) {
-  event.preventDefault();
-
-  const file = els.pdfFileInput.files?.[0];
-  if (!file) {
-    showToast('Önce bir PDF seçin.', 'error');
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('pdf', file);
-
-  try {
-    const response = await api('/api/pdf/preview', {
-      method: 'POST',
-      body: formData,
-      headers: {}
-    });
-
-    state.pdfPreview = (response.preview?.items || []).map((row) => ({
-      ...row,
-      add_quantity: Math.max(0, Math.round(Number(row.add_quantity || 0))),
-      new_unit_price: row.pdf_unit_price ?? row.current_unit_price ?? null
-    }));
-    const info = response.preview || {};
-    els.pdfPreviewInfo.textContent =
-      `Taranan satır: ${numberTR(info.scanned_line_count || 0)} · Eşleşen ürün: ${numberTR(info.matched_item_count || 0)} · ` +
-      `Toplam eklenecek adet: ${numberTR(info.total_add_quantity || 0)} · Toplam eklenecek KG: ${formatKg(
-        info.total_add_kg || 0
-      )}`;
-
-    renderPdfPreview();
-    els.pdfPreviewModal.classList.remove('hidden');
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
-}
-
-async function applyPdfPreview() {
-  if (!state.pdfPreview.length) {
-    showToast('Uygulanacak satır yok.', 'error');
-    return;
-  }
-
-  const payloadItems = state.pdfPreview
-    .map((row) => ({
-      product_id: row.product_id,
-      add_quantity: Math.max(0, Math.round(Number(row.add_quantity || 0))),
-      new_unit_price:
-        row.new_unit_price === '' || row.new_unit_price === null || row.new_unit_price === undefined
-          ? null
-          : parseLocaleNumber(row.new_unit_price, null)
-    }))
-    .filter((row) => row.add_quantity > 0);
-
-  if (!payloadItems.length) {
-    showToast('Eklenecek adet 0 olamaz.', 'error');
-    return;
-  }
-
-  try {
-    const response = await api('/api/pdf/apply', {
-      method: 'POST',
-      body: JSON.stringify({ items: payloadItems })
-    });
-
-    renderSummary(response.summary);
-    closePdfPreviewModal();
-    els.pdfFileInput.value = '';
-    await Promise.all([loadProducts(), loadAlerts()]);
-    showToast(`PDF verisi uygulandı: ${response.applied_count} ürün`, 'success');
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -788,7 +757,15 @@ async function applyPdfPreview() {
 
 async function saveUserFromRow(row) {
   const userId = Number(row.dataset.userId);
+  const usernameInput = row.querySelector('[data-field="username"]');
+  const username = usernameInput ? usernameInput.value.trim() : '';
+
+  if (!username) {
+    throw new Error('Kullanıcı adı boş olamaz.');
+  }
+
   const payload = {
+    username,
     role: row.querySelector('[data-field="role"]').value,
     is_active: row.querySelector('[data-field="is_active"]').checked,
     can_create_product: row.querySelector('[data-field="can_create_product"]').checked,
@@ -823,6 +800,40 @@ async function resetUserPasswordFromRow(row) {
   input.value = '';
 }
 
+async function createUser() {
+  if (!can('can_manage_users')) {
+    showToast('Bu işlem için yetkiniz yok.', 'error');
+    return;
+  }
+
+  const username = els.createUsername.value.trim();
+  const password = els.createPassword.value;
+  const role = els.createRole.value;
+  const is_active = els.createActive.checked;
+
+  if (!username || !password) {
+    showToast('Kullanıcı adı ve şifre zorunludur.', 'error');
+    return;
+  }
+
+  try {
+    await api('/api/users', {
+      method: 'POST',
+      body: JSON.stringify({ username, password, role, is_active })
+    });
+
+    els.createUsername.value = '';
+    els.createPassword.value = '';
+    els.createRole.value = 'manager';
+    els.createActive.checked = true;
+
+    await loadUsers();
+    showToast('Kullanıcı eklendi.', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
 async function handleLogin(event) {
   event.preventDefault();
 
@@ -845,14 +856,17 @@ async function handleLogin(event) {
     els.loginPassword.value = '';
 
     updateAuthUI();
-    await Promise.all([loadSummary(), loadProducts(), loadAlerts()]);
+    await Promise.all([loadSummary(), loadProducts({ reset: true }), loadAlerts()]);
 
-    if (state.ui.adminOpen && can('can_view_logs') && !state.user.must_change_password) {
-      await loadLogs();
-    }
-
-    if (state.ui.adminOpen && can('can_manage_users') && !state.user.must_change_password) {
-      await loadUsers();
+    if (isAdminRoute && isAdmin() && !state.user.must_change_password) {
+      const jobs = [];
+      if (can('can_view_logs')) {
+        jobs.push(loadLogs());
+      }
+      if (can('can_manage_users')) {
+        jobs.push(loadUsers());
+      }
+      await Promise.all(jobs);
     }
 
     showToast('Giriş başarılı.', 'success');
@@ -870,7 +884,6 @@ async function handleLogout() {
 
   state.user = null;
   state.token = null;
-  state.ui.adminOpen = false;
   state.filters = {
     search: '',
     category: '',
@@ -880,9 +893,10 @@ async function handleLogout() {
 
   els.searchInput.value = '';
   els.categorySelect.value = '';
+  renderCategoryTabs();
 
   updateAuthUI();
-  await Promise.all([loadSummary(), loadProducts(), loadAlerts()]);
+  await Promise.all([loadSummary(), loadProducts({ reset: true }), loadAlerts()]);
   els.logTableBody.innerHTML = '';
   els.usersTableBody.innerHTML = '';
 
@@ -907,14 +921,17 @@ async function handlePasswordChange(event) {
 
     updateAuthUI();
 
-    await Promise.all([loadSummary(), loadProducts(), loadAlerts()]);
+    await Promise.all([loadSummary(), loadProducts({ reset: true }), loadAlerts()]);
 
-    if (state.ui.adminOpen && can('can_view_logs')) {
-      await loadLogs();
-    }
-
-    if (state.ui.adminOpen && can('can_manage_users')) {
-      await loadUsers();
+    if (isAdminRoute && isAdmin()) {
+      const jobs = [];
+      if (can('can_view_logs')) {
+        jobs.push(loadLogs());
+      }
+      if (can('can_manage_users')) {
+        jobs.push(loadUsers());
+      }
+      await Promise.all(jobs);
     }
 
     showToast('Şifre güncellendi.', 'success');
@@ -978,23 +995,7 @@ function bindEvents() {
 
   els.reloadBtn.addEventListener('click', () => {
     state.pagination.page = 1;
-    Promise.all([loadSummary(), loadProducts(), loadAlerts()]).catch((err) => showToast(err.message, 'error'));
-  });
-
-  els.toggleAdminBtn.addEventListener('click', () => {
-    state.ui.adminOpen = !state.ui.adminOpen;
-    updateAuthUI();
-
-    if (state.ui.adminOpen && state.user && !state.user.must_change_password) {
-      const jobs = [];
-      if (can('can_view_logs')) {
-        jobs.push(loadLogs());
-      }
-      if (can('can_manage_users')) {
-        jobs.push(loadUsers());
-      }
-      Promise.all(jobs).catch((err) => showToast(err.message, 'error'));
-    }
+    Promise.all([loadSummary(), loadProducts({ reset: true }), loadAlerts()]).catch((err) => showToast(err.message, 'error'));
   });
 
   let searchTimer;
@@ -1003,15 +1004,30 @@ function bindEvents() {
     searchTimer = setTimeout(() => {
       state.filters.search = els.searchInput.value.trim();
       state.pagination.page = 1;
-      loadProducts().catch((err) => showToast(err.message, 'error'));
+      loadProducts({ reset: true }).catch((err) => showToast(err.message, 'error'));
     }, 250);
   });
 
   els.categorySelect.addEventListener('change', () => {
     state.filters.category = els.categorySelect.value;
     state.pagination.page = 1;
-    loadProducts().catch((err) => showToast(err.message, 'error'));
+    renderCategoryTabs();
+    loadProducts({ reset: true }).catch((err) => showToast(err.message, 'error'));
   });
+
+  if (els.categoryTabs) {
+    els.categoryTabs.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-category]');
+      if (!button) {
+        return;
+      }
+      const categoryId = button.dataset.category || '';
+      state.filters.category = categoryId;
+      els.categorySelect.value = categoryId;
+      renderCategoryTabs();
+      loadProducts({ reset: true }).catch((err) => showToast(err.message, 'error'));
+    });
+  }
 
   els.sortableHeaders.forEach((th) => {
     th.addEventListener('click', () => {
@@ -1030,24 +1046,8 @@ function bindEvents() {
       }
 
       state.pagination.page = 1;
-      loadProducts().catch((err) => showToast(err.message, 'error'));
+      loadProducts({ reset: true }).catch((err) => showToast(err.message, 'error'));
     });
-  });
-
-  els.prevPageBtn.addEventListener('click', () => {
-    if (state.pagination.page <= 1) {
-      return;
-    }
-    state.pagination.page -= 1;
-    loadProducts().catch((err) => showToast(err.message, 'error'));
-  });
-
-  els.nextPageBtn.addEventListener('click', () => {
-    if (state.pagination.page >= state.pagination.pages) {
-      return;
-    }
-    state.pagination.page += 1;
-    loadProducts().catch((err) => showToast(err.message, 'error'));
   });
 
   els.openCreateBtn.addEventListener('click', openCreateModal);
@@ -1076,27 +1076,28 @@ function bindEvents() {
   });
   els.usersTableBody.addEventListener('click', onUsersTableClick);
 
-  els.pdfPreviewForm.addEventListener('submit', previewPdf);
-  els.closePdfPreviewBtn.addEventListener('click', closePdfPreviewModal);
-  els.applyPdfBtn.addEventListener('click', applyPdfPreview);
+  if (els.scrollSentinel && els.productTableWrap) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadMoreProducts().catch((err) => showToast(err.message, 'error'));
+        }
+      },
+      {
+        root: els.productTableWrap,
+        rootMargin: '0px 0px 160px 0px',
+        threshold: 0.1
+      }
+    );
+    observer.observe(els.scrollSentinel);
+  }
 
-  els.pdfPreviewBody.addEventListener('change', (event) => {
-    const input = event.target;
-    const index = Number(input.dataset.index);
-    if (!Number.isFinite(index) || !state.pdfPreview[index]) {
-      return;
-    }
-
-    const field = input.dataset.pdfField;
-    if (field === 'add_quantity') {
-      state.pdfPreview[index].add_quantity = Math.max(0, Math.round(Number(input.value || 0)));
-    }
-    if (field === 'new_unit_price') {
-      state.pdfPreview[index].new_unit_price = input.value;
-    }
-
-    renderPdfPreview();
-  });
+  if (els.createUserForm) {
+    els.createUserForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      createUser().catch((err) => showToast(err.message, 'error'));
+    });
+  }
 
   els.productModal.addEventListener('click', (event) => {
     if (event.target === els.productModal) {
@@ -1109,31 +1110,19 @@ function bindEvents() {
       closeStockModal();
     }
   });
-
-  els.pdfPreviewModal.addEventListener('click', (event) => {
-    if (event.target === els.pdfPreviewModal) {
-      closePdfPreviewModal();
-    }
-  });
 }
 
 async function bootstrap() {
   bindEvents();
+  updateRouteUI();
 
   try {
     await refreshSession();
     await loadCategories();
-    await Promise.all([loadSummary(), loadProducts(), loadAlerts()]);
+    await Promise.all([loadSummary(), loadProducts({ reset: true }), loadAlerts()]);
 
-    if (state.ui.adminOpen && state.user && !state.user.must_change_password) {
-      const jobs = [];
-      if (can('can_view_logs')) {
-        jobs.push(loadLogs());
-      }
-      if (can('can_manage_users')) {
-        jobs.push(loadUsers());
-      }
-      await Promise.all(jobs);
+    if (isAdminRoute && isAdmin() && state.user && !state.user.must_change_password) {
+      await Promise.all([loadLogs(), loadUsers()]);
     }
   } catch (err) {
     console.error(err);
@@ -1142,3 +1131,25 @@ async function bootstrap() {
 }
 
 bootstrap();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
