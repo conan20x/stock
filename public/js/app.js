@@ -227,6 +227,16 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function resolveAssetUrl(url) {
+  if (!url) {
+    return null;
+  }
+  if (url.startsWith('/')) {
+    return `${basePath()}${url.slice(1)}`;
+  }
+  return url;
+}
+
 async function api(path, options = {}) {
   const init = { ...options, credentials: 'include' };
   const headers = { ...(options.headers || {}) };
@@ -386,8 +396,9 @@ function renderAlertList(element, items) {
 
   element.innerHTML = items.map((item) => {
     const hasKg = item.stock_kg !== null && item.stock_kg !== undefined;
-    const image = item.image_url
-      ? `<img class="alert-img" src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.name)}" loading="lazy" />`
+    const imageUrl = resolveAssetUrl(item.image_url);
+    const image = imageUrl
+      ? `<img class="alert-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" />`
       : '<div class="alert-img"></div>';
     return `<li class="alert-item">
       ${image}
@@ -406,8 +417,9 @@ async function loadAlerts() {
 
 function productRowTemplate(product) {
   const status = statusLabel(product.stock_status);
-  const imageHtml = product.image_url
-    ? `<img class="product-img" src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" loading="lazy" />`
+  const imageUrl = resolveAssetUrl(product.image_url);
+  const imageHtml = imageUrl
+    ? `<img class="product-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name)}" loading="lazy" />`
     : '<div class="product-img"></div>';
 
   const actions = [];
@@ -1133,6 +1145,8 @@ async function bootstrap() {
 }
 
 bootstrap();
+
+
 
 
 
