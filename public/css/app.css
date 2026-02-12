@@ -86,9 +86,7 @@ body {
 /* ── Container ──────────────────────────────────────── */
 #passwordGate,
 .app-header,
-.layout,
-#productModal,
-#stockModal {
+.layout {
   width: 100%;
   max-width: 1380px;
   margin-inline: auto;
