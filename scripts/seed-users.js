@@ -80,12 +80,12 @@ async function seedUsers() {
       created_at,
       updated_at
     )
-    VALUES (?, ?, ?, ?, 1, 1, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    VALUES (?, ?, ?, ?, 0, 1, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ON CONFLICT(username) DO UPDATE SET
       password_hash = excluded.password_hash,
       email = excluded.email,
       role = excluded.role,
-      must_change_password = 1,
+      must_change_password = 0,
       is_active = 1,
       can_create_product = excluded.can_create_product,
       can_edit_product = excluded.can_edit_product,

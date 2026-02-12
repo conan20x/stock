@@ -124,7 +124,7 @@ router.post('/', async (req, res) => {
         created_at,
         updated_at
       )
-      VALUES (?, ?, NULL, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      VALUES (?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `).run(
       username,
       hash,
@@ -293,7 +293,7 @@ router.put('/:id/password', async (req, res) => {
       UPDATE users
       SET
         password_hash = ?,
-        must_change_password = 1,
+        must_change_password = 0,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(hash, userId);
