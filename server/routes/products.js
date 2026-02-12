@@ -13,6 +13,13 @@ function parseInteger(value, fallback = null) {
   return Number.isFinite(num) ? num : fallback;
 }
 
+function parseQuantity(value, fallback = null) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+  return parsePrice(value, fallback);
+}
+
 function parsePrice(value, fallback = 0) {
   if (value === undefined || value === null || value === '') {
     return fallback;
@@ -207,7 +214,7 @@ router.post('/', (req, res) => {
     const name = String(req.body.name || '').trim();
     const categoryId = parseInteger(req.body.category_id);
     const supplierPrice = parsePrice(req.body.supplier_price, 0);
-    const quantity = parseInteger(req.body.quantity, 0);
+    const quantity = parseQuantity(req.body.quantity, 0);
     const minQuantity = parseInteger(req.body.min_quantity, 5);
     const imagePath = normalizeImagePath(req.body.image_path);
     const unit = String(req.body.unit || 'adet').trim().toLowerCase();
@@ -349,8 +356,8 @@ router.patch('/:id/stock', (req, res) => {
       return res.status(404).json({ error: 'Stok kaydı bulunamadı.' });
     }
 
-    const absoluteQty = parseInteger(req.body.quantity, null);
-    const delta = parseInteger(req.body.delta, null);
+    const absoluteQty = parseQuantity(req.body.quantity, null);
+    const delta = parseQuantity(req.body.delta, null);
 
     let quantity = absoluteQty;
     if (quantity === null && delta !== null) {

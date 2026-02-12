@@ -66,7 +66,7 @@
         <strong id="kpiLow">0</strong>
       </article>
       <article class="kpi">
-        <span class="label">Azalabilir Stok</span>
+        <span class="label">Bitmeye Yakın</span>
         <strong id="kpiWarning">0</strong>
       </article>
     </section>
@@ -81,7 +81,7 @@
           <ul id="lowAlertsList" class="alert-list"></ul>
         </div>
         <div>
-          <h3>Azalabilir Stok</h3>
+          <h3>Bitmeye Yakın</h3>
           <ul id="warningAlertsList" class="alert-list"></ul>
         </div>
       </div>
@@ -114,8 +114,8 @@
               <th data-sort="name" class="sortable">Ürün</th>
               <th data-sort="category" class="sortable">Kategori</th>
               <th data-sort="supplier_price" class="sortable">Fiyat</th>
-              <th data-sort="quantity" class="sortable">Adet</th>
-              <th data-sort="min_quantity" class="sortable">Kritik Min</th>
+              <th data-sort="quantity" class="sortable">Miktar</th>
+              <th data-sort="min_quantity" class="sortable">Uyarı Eşiği</th>
               <th data-sort="stock_value" class="sortable">Stok Değeri</th>
               <th data-sort="status" class="sortable">Durum</th>
               <th id="actionHeader" data-sort="actions" class="sortable hidden">İşlemler</th>
@@ -253,11 +253,8 @@
         <label>Birim
           <input id="productUnit" value="adet" />
         </label>
-        <label>Kritik Min
+        <label>Düşük Stok Eşiği
           <input id="productMinQuantity" type="number" min="0" value="5" required />
-        </label>
-        <label id="imagePathWrap">Resim Yolu
-          <input id="productImagePath" placeholder="ÇAY-KAHVE-İÇECEK_files/500x500_thumb_1453.jpg" />
         </label>
 
         <div class="modal-actions">
@@ -279,7 +276,7 @@
         <div class="stock-stepper">
           <button type="button" class="btn subtle" data-delta="-1">-1</button>
           <button type="button" class="btn subtle" data-delta="-5">-5</button>
-          <input id="stockQuantity" type="number" min="0" required placeholder="Adet" />
+          <input id="stockQuantity" type="number" min="0" step="0.01" required placeholder="Miktar" />
           <button type="button" class="btn subtle" data-delta="1">+1</button>
           <button type="button" class="btn subtle" data-delta="5">+5</button>
         </div>

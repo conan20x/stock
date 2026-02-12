@@ -16,32 +16,22 @@ function parseInteger(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function extractPackageKg(name) {
-  const source = String(name || '');
-  const exact = source.match(/\((\d+(?:[.,]\d+)?)\s*KG\)/i);
-  const generic = source.match(/(\d+(?:[.,]\d+)?)\s*KG/i);
-  const raw = exact?.[1] || generic?.[1];
-  if (!raw) {
-    return null;
-  }
-
-  const value = Number.parseFloat(raw.replace(',', '.'));
-  if (!Number.isFinite(value) || value <= 0) {
-    return null;
-  }
-
-  return value;
+function normalizeSearchValue(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\u0131/g, 'i')
+    .replace(/\u015f/g, 's')
+    .replace(/\u011f/g, 'g')
+    .replace(/\u00e7/g, 'c')
+    .replace(/\u00f6/g, 'o')
+    .replace(/\u00fc/g, 'u');
 }
 
 function enrichProduct(product) {
-  const packageKg = extractPackageKg(product.name);
-  const quantity = Number(product.quantity || 0);
-  const stockKg = packageKg ? Number((quantity * packageKg).toFixed(3)) : null;
-
   return {
     ...product,
-    package_kg: packageKg,
-    stock_kg: stockKg,
     image_url: toImageUrl(product.image_path)
   };
 }
@@ -74,8 +64,9 @@ router.get('/', optionalAuth, (req, res) => {
     const params = [];
 
     if (search) {
-      whereParts.push('(p.name LIKE ? OR p.stock_code LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`);
+      const normalizedSearch = normalizeSearchValue(search);
+      whereParts.push('(tr_norm(p.name) LIKE ? OR tr_norm(p.stock_code) LIKE ?)');
+      params.push(`%${normalizedSearch}%`, `%${normalizedSearch}%`);
     }
 
     if (category) {
@@ -184,7 +175,7 @@ router.get('/alerts', optionalAuth, (req, res) => {
     if (process.env.DISABLE_GUEST === '1' && !req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    const limit = Math.min(Math.max(parseInteger(req.query.limit, 8), 1), 50);
+    const limit = Math.min(Math.max(parseInteger(req.query.limit, 200), 1), 500);
 
     const lowItems = db.prepare(`
       SELECT
@@ -194,6 +185,7 @@ router.get('/alerts', optionalAuth, (req, res) => {
         c.name AS category_name,
         COALESCE(s.quantity, 0) AS quantity,
         COALESCE(s.min_quantity, 0) AS min_quantity,
+        p.unit,
         p.image_path
       FROM products p
       JOIN categories c ON c.id = p.category_id
@@ -211,6 +203,7 @@ router.get('/alerts', optionalAuth, (req, res) => {
         c.name AS category_name,
         COALESCE(s.quantity, 0) AS quantity,
         COALESCE(s.min_quantity, 0) AS min_quantity,
+        p.unit,
         p.image_path
       FROM products p
       JOIN categories c ON c.id = p.category_id

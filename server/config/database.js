@@ -16,4 +16,19 @@ const db = new Database(dbPath);
 // Enable foreign keys
 db.pragma('foreign_keys = ON');
 
+function normalizeForSearch(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\u0131/g, 'i')
+    .replace(/\u015f/g, 's')
+    .replace(/\u011f/g, 'g')
+    .replace(/\u00e7/g, 'c')
+    .replace(/\u00f6/g, 'o')
+    .replace(/\u00fc/g, 'u');
+}
+
+db.function('tr_norm', { deterministic: true }, normalizeForSearch);
+
 module.exports = db;

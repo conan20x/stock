@@ -83,8 +83,6 @@ const els = {
   productPrice: document.getElementById('productPrice'),
   productMinQuantity: document.getElementById('productMinQuantity'),
   productUnit: document.getElementById('productUnit'),
-  productImagePath: document.getElementById('productImagePath'),
-  imagePathWrap: document.getElementById('imagePathWrap'),
 
   stockModal: document.getElementById('stockModal'),
   closeStockModalBtn: document.getElementById('closeStockModalBtn'),
@@ -149,7 +147,7 @@ function statusLabel(status) {
     return { text: 'Düşük', cls: 'low' };
   }
   if (status === 'azalabilir') {
-    return { text: 'Azalabilir', cls: 'warn' };
+    return { text: 'Bitmeye Yakın', cls: 'warn' };
   }
   return { text: 'Yeterli', cls: 'good' };
 }
@@ -210,12 +208,27 @@ function parseLocaleNumber(value, fallback = null) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function formatKg(value) {
-  const numeric = Number(value);
+function normalizeUnit(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['kg', 'kilo', 'kilogram'].includes(normalized)) {
+    return 'kg';
+  }
+  return normalized;
+}
+
+function formatQuantityWithUnit(quantity, unit) {
+  const numeric = Number(quantity);
   if (!Number.isFinite(numeric)) {
     return '-';
   }
-  return `${numberTR(numeric)} KG`;
+  const normalizedUnit = normalizeUnit(unit);
+  if (normalizedUnit === 'kg') {
+    return `${numberTR(numeric)} KG`;
+  }
+  if (normalizedUnit) {
+    return `${numberTR(numeric)} ${normalizedUnit}`;
+  }
+  return numberTR(numeric);
 }
 
 function escapeHtml(value) {
@@ -305,7 +318,6 @@ function updateAuthUI() {
   if (els.adminDenied) {
     els.adminDenied.classList.toggle('hidden', !isAdminRoute || adminAllowed);
   }
-  els.imagePathWrap.classList.toggle('hidden', !can('can_edit_product'));
 
   if (els.adminLink) {
     els.adminLink.classList.toggle('hidden', !(canOperate && isAdmin() && !isAdminRoute));
@@ -395,20 +407,19 @@ function renderAlertList(element, items) {
   }
 
   element.innerHTML = items.map((item) => {
-    const hasKg = item.stock_kg !== null && item.stock_kg !== undefined;
     const imageUrl = resolveAssetUrl(item.image_url);
     const image = imageUrl
       ? `<img class="alert-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" />`
       : '<div class="alert-img"></div>';
     return `<li class="alert-item">
       ${image}
-      <span><strong>${escapeHtml(item.stock_code)}</strong> ${escapeHtml(item.name)} · ${numberTR(item.quantity)} adet${hasKg ? ` / ${formatKg(item.stock_kg)}` : ''} (min ${numberTR(item.min_quantity)})</span>
+      <span><strong>${escapeHtml(item.stock_code)}</strong> ${escapeHtml(item.name)} · ${formatQuantityWithUnit(item.quantity, item.unit)} (eşik ${numberTR(item.min_quantity)})</span>
     </li>`;
   }).join('');
 }
 
 async function loadAlerts() {
-  const data = await api('/api/catalog/alerts?limit=12');
+  const data = await api('/api/catalog/alerts?limit=500');
   const low = data.alerts?.low || [];
   const warning = data.alerts?.warning || [];
   renderAlertList(els.lowAlertsList, low);
@@ -434,9 +445,7 @@ function productRowTemplate(product) {
   }
 
   const actionCell = actions.length ? `<div class="row-actions">${actions.join('')}</div>` : '';
-  const quantityCell = product.package_kg
-    ? `${numberTR(product.quantity)} adet <br><small>${formatKg(product.stock_kg)}</small>`
-    : `${numberTR(product.quantity)}`;
+  const quantityCell = formatQuantityWithUnit(product.quantity, product.unit);
 
   return `
     <tr>
@@ -445,8 +454,8 @@ function productRowTemplate(product) {
       <td data-label="Ürün">${escapeHtml(product.name)}</td>
       <td data-label="Kategori">${escapeHtml(product.category_name)}</td>
       <td data-label="Fiyat" class="mono">${currencyTRY(product.supplier_price_try)}</td>
-      <td data-label="Adet" class="mono">${quantityCell}</td>
-      <td data-label="Kritik Min" class="mono">${numberTR(product.min_quantity)}</td>
+      <td data-label="Miktar" class="mono">${quantityCell}</td>
+      <td data-label="Uyarı Eşiği" class="mono">${numberTR(product.min_quantity)}</td>
       <td data-label="Stok Değeri" class="mono">${currencyTRY(product.stock_value_try)}</td>
       <td data-label="Durum"><span class="tag ${status.cls}">${status.text}</span></td>
       <td data-label="İşlemler" class="${showActionColumn() ? '' : 'hidden'}">${actionCell}</td>
@@ -639,7 +648,6 @@ function resetProductForm() {
   els.productPrice.value = '0';
   els.productMinQuantity.value = '5';
   els.productUnit.value = 'adet';
-  els.productImagePath.value = '';
 }
 
 function openCreateModal() {
@@ -662,7 +670,6 @@ function openEditModal(productId) {
   els.productPrice.value = String(product.supplier_price_try ?? 0);
   els.productMinQuantity.value = String(product.min_quantity ?? 0);
   els.productUnit.value = product.unit || 'adet';
-  els.productImagePath.value = product.image_path || '';
   els.productModalTitle.textContent = 'Ürün Düzenle';
   els.productModal.classList.remove('hidden');
 }
@@ -701,8 +708,7 @@ async function createOrUpdateProduct(event) {
     category_id: Number(els.productCategory.value),
     supplier_price: Number(els.productPrice.value || 0),
     min_quantity: Number(els.productMinQuantity.value || 0),
-    unit: els.productUnit.value.trim() || 'adet',
-    image_path: els.productImagePath.value.trim()
+    unit: els.productUnit.value.trim() || 'adet'
   };
 
   const id = els.productId.value ? Number(els.productId.value) : null;
@@ -737,7 +743,7 @@ async function createOrUpdateProduct(event) {
 async function submitStock(event) {
   event.preventDefault();
   const productId = Number(els.stockProductId.value);
-  const quantity = Number(els.stockQuantity.value || 0);
+  const quantity = parseLocaleNumber(els.stockQuantity.value, 0);
 
   try {
     const response = await api(`/api/products/${productId}/stock`, {
@@ -1073,7 +1079,7 @@ function bindEvents() {
   els.stockStepperButtons.forEach((button) => {
     button.addEventListener('click', () => {
       const delta = Number(button.dataset.delta || 0);
-      const current = Number(els.stockQuantity.value || 0);
+      const current = parseLocaleNumber(els.stockQuantity.value, 0);
       const next = Math.max(0, current + delta);
       els.stockQuantity.value = String(next);
     });
