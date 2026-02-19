@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../config/database');
 const { verifySession, requirePasswordChangeComplete } = require('../middleware/auth');
-const { requirePermission, isAdmin } = require('../middleware/roleCheck');
+const { isAdmin } = require('../middleware/roleCheck');
 
 const router = express.Router();
 
@@ -549,7 +549,6 @@ router.get(
   '/insights',
   verifySession,
   requirePasswordChangeComplete,
-  requirePermission('can_update_stock'),
   (_req, res) => {
     try {
       const d3 = buildPeriodStats(3);
@@ -636,7 +635,7 @@ router.post('/ai-analysis', verifySession, requirePasswordChangeComplete, isAdmi
   }
 });
 
-router.get('/', verifySession, requirePasswordChangeComplete, requirePermission('can_update_stock'), (req, res) => {
+router.get('/', verifySession, requirePasswordChangeComplete, (req, res) => {
   try {
     const page = Math.max(parseInteger(req.query.page, 1), 1);
     const limit = Math.min(Math.max(parseInteger(req.query.limit, 100), 1), 500);

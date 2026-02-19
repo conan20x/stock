@@ -162,6 +162,10 @@ function isAdmin() {
   return state.user?.role === 'admin';
 }
 
+function canViewUsageHistory() {
+  return Boolean(state.user && !state.user.must_change_password);
+}
+
 function showActionColumn() {
   return Boolean(
     state.user &&
@@ -396,7 +400,7 @@ function updateAuthUI() {
   const canOperate = state.user && !mustChangePassword;
   const showActions = showActionColumn();
   const adminAllowed = Boolean(canOperate && isAdmin());
-  const usageAllowed = Boolean(canOperate && can('can_update_stock'));
+  const usageAllowed = canViewUsageHistory();
 
   els.actionHeader.classList.toggle('hidden', !showActions);
   els.openCreateBtn.classList.toggle('hidden', !(canOperate && can('can_create_product')));
@@ -1045,7 +1049,7 @@ async function loadUsage() {
   if (!isUsageRoute) {
     return;
   }
-  if (!can('can_update_stock') || state.user?.must_change_password) {
+  if (!canViewUsageHistory()) {
     return;
   }
 
@@ -1171,7 +1175,7 @@ async function loadUsageInsights() {
   if (!isUsageRoute) {
     return;
   }
-  if (!can('can_update_stock') || state.user?.must_change_password) {
+  if (!canViewUsageHistory()) {
     return;
   }
 
@@ -1687,7 +1691,7 @@ async function handleLogin(event) {
       }
       await Promise.all(jobs);
     }
-    if (isUsageRoute && can('can_update_stock') && !state.user.must_change_password) {
+    if (isUsageRoute && canViewUsageHistory()) {
       await Promise.all([loadUsage(), loadUsageInsights()]);
     }
 
@@ -1769,7 +1773,7 @@ async function handlePasswordChange(event) {
       }
       await Promise.all(jobs);
     }
-    if (isUsageRoute && can('can_update_stock')) {
+    if (isUsageRoute && canViewUsageHistory()) {
       await Promise.all([loadUsage(), loadUsageInsights()]);
     }
 
@@ -2041,7 +2045,7 @@ async function bootstrap() {
       }
       await Promise.all(jobs);
     }
-    if (isUsageRoute && state.user && !state.user.must_change_password && can('can_update_stock')) {
+    if (isUsageRoute && canViewUsageHistory()) {
       await Promise.all([loadUsage(), loadUsageInsights()]);
     }
   } catch (err) {
