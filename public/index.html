@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cafe Stok Takip</title>
+  <title>Boston Drink & Dessert</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -15,29 +15,40 @@
 
 <body>
   <div class="bg-layer"></div>
+  <div class="app-shell">
+    <aside class="sidebar panel">
+      <div class="sidebar-brand">
+        <img class="brand-logo" src="images/boston-logo.png" alt="Boston Drink & Dessert" loading="lazy" />
+        <p class="eyebrow">Boston Drink & Dessert</p>
+        <h2>Yönetim Paneli</h2>
+      </div>
+      <nav class="sidebar-nav">
+        <a id="navHomeLink" class="nav-link" href="./">Anasayfa</a>
+        <a id="navUsageLink" class="nav-link hidden" href="usage">Kullanım Geçmişi</a>
+        <a id="navAdminLink" class="nav-link hidden" href="admin">Admin Paneli</a>
+      </nav>
 
-  <header class="app-header">
-    <div class="title-block">
-      <p class="eyebrow">Cafe Envanter Yönetimi</p>
-      <h1>Stok Kontrol Paneli</h1>
-    </div>
+      <div class="auth-card sidebar-auth">
+        <div id="authState" class="auth-state guest">Misafir: Sadece görüntüleme</div>
 
-    <div class="auth-card">
-      <div id="authState" class="auth-state guest">Misafir: Sadece görüntüleme</div>
+        <form id="loginForm" class="auth-form">
+          <input id="loginUsername" name="username" placeholder="Kullanıcı adı" autocomplete="username" />
+          <input id="loginPassword" name="password" type="password" placeholder="Şifre" autocomplete="current-password" />
+          <button type="submit">Giriş Yap</button>
+        </form>
+        <button id="logoutBtn" class="btn subtle hidden" type="button">Çıkış Yap</button>
+      </div>
+    </aside>
 
-      <form id="loginForm" class="auth-form">
-        <input id="loginUsername" name="username" placeholder="Kullanıcı adı" autocomplete="username" />
-        <input id="loginPassword" name="password" type="password" placeholder="Şifre" autocomplete="current-password" />
-        <button type="submit">Giriş Yap</button>
-      </form>
+    <div class="content-shell">
+      <header class="app-header">
+      <div class="title-block">
+        <p class="eyebrow">Boston Drink & Dessert</p>
+        <img class="header-logo" src="images/boston-logo.png" alt="Boston Drink & Dessert" loading="lazy" />
+      </div>
+      </header>
 
-      <a id="adminLink" class="btn subtle hidden" href="admin">Admin Paneli</a>
-      <a id="adminBackLink" class="btn subtle hidden" href="./">Ana sayfaya dön</a>
-      <button id="logoutBtn" class="btn subtle hidden" type="button">Çıkış Yap</button>
-    </div>
-  </header>
-
-  <section id="passwordGate" class="panel hidden password-panel">
+      <section id="passwordGate" class="panel hidden password-panel">
     <h2>Şifre Güncelleme Gerekli</h2>
     <p>İlk girişten sonra devam etmek için şifrenizi değiştirin.</p>
     <form id="passwordForm" class="password-form">
@@ -45,9 +56,9 @@
       <input id="newPassword" type="password" placeholder="Yeni şifre (en az 8 karakter)" required />
       <button type="submit">Şifreyi Güncelle</button>
     </form>
-  </section>
+      </section>
 
-  <main id="mainPage" class="layout">
+      <main id="mainPage" class="layout">
     <section class="kpi-grid">
       <article class="kpi">
         <span class="label">Toplam Stok Değeri</span>
@@ -131,7 +142,7 @@
         <span id="loadingIndicator" class="hint hidden">Yükleniyor...</span>
       </div>
     </section>
-  </main>
+      </main>
 
   <main id="adminPage" class="layout hidden">
     <section class="panel">
@@ -151,40 +162,21 @@
     <section id="usersPanel" class="panel hidden">
       <div class="panel-head">
         <h2>Kullanıcı Yönetimi (Admin)</h2>
-        <button id="refreshUsersBtn" class="btn subtle" type="button">Kullanıcıları Yenile</button>
+        <div class="panel-actions">
+          <button id="openCreateUserBtn" class="btn" type="button">Yeni Kullanıcı</button>
+          <button id="refreshUsersBtn" class="btn subtle" type="button">Yenile</button>
+        </div>
       </div>
-
-      <form id="createUserForm" class="inline-form compact user-create-form">
-        <input id="createUsername" placeholder="Yeni kullanıcı adı" required />
-        <input id="createPassword" type="password" placeholder="Geçici şifre (min 8)" required />
-        <select id="createRole">
-          <option value="manager">manager</option>
-          <option value="guest">guest</option>
-          <option value="admin">admin</option>
-        </select>
-        <label class="inline-checkbox">
-          <input id="createActive" type="checkbox" checked />
-          Aktif
-        </label>
-        <button type="submit" class="btn">Kullanıcı Ekle</button>
-      </form>
 
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th title="Kullanıcı">Kullanıcı</th>
-              <th title="Rol">Rol</th>
-              <th title="Aktif">Aktif</th>
-              <th title="Stok">Stok</th>
-              <th title="Ürün Düzenle">Düzenle</th>
-              <th title="Ürün Sil">Sil</th>
-              <th title="Ürün Ekle">Ekle</th>
-              <th title="Log">Log</th>
-              <th title="Kullanıcı Yönetimi">Kullanıcı</th>
-              <th title="PDF Tara">PDF</th>
-              <th title="Şifre Sıfırla">Şifre</th>
-              <th title="Kaydet">Kaydet</th>
+              <th>Kullanıcı</th>
+              <th>Rol</th>
+              <th>Durum</th>
+              <th>Son Giriş</th>
+              <th>İşlemler</th>
             </tr>
           </thead>
           <tbody id="usersTableBody"></tbody>
@@ -216,10 +208,7 @@
               <th>Tarih</th>
               <th>Kullanıcı</th>
               <th>İşlem</th>
-              <th>Tablo</th>
-              <th>Kayıt</th>
-              <th>Önce</th>
-              <th>Sonra</th>
+              <th>Detay</th>
               <th>Kaynak</th>
             </tr>
           </thead>
@@ -227,7 +216,116 @@
         </table>
       </div>
     </section>
+
+    <section id="visitorsPanel" class="panel hidden">
+      <div class="panel-head">
+        <h2>Ziyaretçi Analitiği</h2>
+        <div class="panel-actions">
+          <button id="refreshVisitorsBtn" class="btn subtle" type="button">Yenile</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid visitor-kpi-grid">
+        <article class="kpi">
+          <span class="label">Toplam Ziyaret</span>
+          <strong id="visitorTotal">0</strong>
+        </article>
+        <article class="kpi">
+          <span class="label">Tekil IP</span>
+          <strong id="visitorUnique">0</strong>
+        </article>
+        <article class="kpi">
+          <span class="label">Bugün</span>
+          <strong id="visitorToday">0</strong>
+        </article>
+        <article class="kpi">
+          <span class="label">Son 24 Saat</span>
+          <strong id="visitorLast24h">0</strong>
+        </article>
+      </div>
+      <p id="visitorDeviceHint" class="hint">Cihaz dağılımı yükleniyor...</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>IP</th>
+              <th>Cihaz</th>
+              <th>Tarayıcı / OS</th>
+              <th>Sayfa</th>
+              <th>Referans</th>
+            </tr>
+          </thead>
+          <tbody id="visitorsTableBody"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
+
+      <main id="usagePage" class="layout hidden">
+        <section id="usageDenied" class="panel hidden">
+          <h2>Yetki Gerekli</h2>
+          <p class="hint">Bu sayfayı görüntülemek için stok güncelleme yetkisi gerekli.</p>
+          <a class="btn subtle" href="./">Ana sayfaya dön</a>
+        </section>
+
+        <section id="usagePanel" class="panel hidden">
+          <div class="panel-head">
+            <h2>Kullanım Geçmişi</h2>
+            <div class="panel-actions">
+              <button id="runUsageAiBtn" class="btn hidden" type="button">AI ile Analiz Et</button>
+              <button id="loadUsageBtn" class="btn subtle" type="button">Kayıtları Yenile</button>
+            </div>
+          </div>
+          <p class="hint">Stok düşürüldüğünde, ürünün ne zaman ve ne kadar kullanıldığı burada görünür.</p>
+
+          <div id="usageInsightsBox" class="usage-insights">
+            <div class="usage-cards">
+              <article class="kpi">
+                <span class="label">Son 3 Gün</span>
+                <strong id="usage3dTotal">0</strong>
+                <small id="usage3dDaily" class="hint">Günlük ort: 0</small>
+              </article>
+              <article class="kpi">
+                <span class="label">Son 7 Gün</span>
+                <strong id="usage7dTotal">0</strong>
+                <small id="usage7dDaily" class="hint">Günlük ort: 0</small>
+              </article>
+              <article class="kpi">
+                <span class="label">Son 30 Gün</span>
+                <strong id="usage30dTotal">0</strong>
+                <small id="usage30dWeekly" class="hint">Haftalık ort: 0</small>
+              </article>
+              <article class="kpi">
+                <span class="label">Çikolata (30 Gün)</span>
+                <strong id="usageChoco30d">0</strong>
+                <small id="usageChocoUnit" class="hint">Birim: -</small>
+              </article>
+            </div>
+            <p id="usageAiSummary" class="hint usage-ai-summary">Kullanım özeti yükleniyor...</p>
+            <div id="usageAiReport" class="usage-ai-report hidden"></div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tarih</th>
+                  <th>Ürün</th>
+                  <th>Kullanım</th>
+                  <th>Önce</th>
+                  <th>Sonra</th>
+                  <th>Kullanıcı</th>
+                </tr>
+              </thead>
+              <tbody id="usageTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
 
   <section id="productModal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-card">
@@ -281,6 +379,67 @@
           <button type="button" class="btn subtle" data-delta="5">+5</button>
         </div>
         <button type="submit">Stoğu Kaydet</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="userModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="panel-head">
+        <h2 id="userModalTitle">Kullanıcı Düzenle</h2>
+        <button id="closeUserModalBtn" class="btn subtle" type="button">Kapat</button>
+      </div>
+
+      <form id="userForm" class="modal-grid">
+        <input type="hidden" id="userId" />
+        <label>Kullanıcı Adı
+          <input id="userUsername" required />
+        </label>
+        <label>Rol
+          <select id="userRole" required>
+            <option value="admin">admin</option>
+            <option value="manager">manager</option>
+            <option value="guest">guest</option>
+          </select>
+        </label>
+        <label class="inline-checkbox full-span">
+          <input id="userIsActive" type="checkbox" checked />
+          Aktif kullanıcı
+        </label>
+
+        <label id="userCreatePasswordWrap" class="full-span hidden">Geçici Şifre
+          <input id="userCreatePassword" type="password" placeholder="En az 8 karakter" />
+        </label>
+
+        <div id="userPermissionSection" class="full-span">
+          <div class="panel-head compact">
+            <h3>Yetkiler</h3>
+            <button id="applyRoleDefaultsBtn" class="btn subtle" type="button">Role Göre Doldur</button>
+          </div>
+          <div class="permission-grid">
+            <label class="inline-checkbox"><input id="permCanUpdateStock" type="checkbox" /> Stok güncelle</label>
+            <label class="inline-checkbox"><input id="permCanEditProduct" type="checkbox" /> Ürün düzenle</label>
+            <label class="inline-checkbox"><input id="permCanDeleteProduct" type="checkbox" /> Ürün sil</label>
+            <label class="inline-checkbox"><input id="permCanCreateProduct" type="checkbox" /> Ürün ekle</label>
+            <label class="inline-checkbox"><input id="permCanViewLogs" type="checkbox" /> Log görüntüle</label>
+            <label class="inline-checkbox"><input id="permCanManageUsers" type="checkbox" /> Kullanıcı yönet</label>
+            <label class="inline-checkbox"><input id="permCanScanPdf" type="checkbox" /> PDF tara</label>
+          </div>
+        </div>
+
+        <div id="userPasswordResetSection" class="full-span hidden">
+          <div class="panel-head compact">
+            <h3>Şifre Güncelle</h3>
+          </div>
+          <div class="inline-form compact">
+            <input id="userNewPassword" type="password" placeholder="Yeni şifre (min 8)" />
+            <button id="userResetPasswordBtn" class="btn subtle" type="button">Şifreyi Güncelle</button>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="saveUserBtn" type="submit">Kaydet</button>
+        </div>
       </form>
     </div>
   </section>

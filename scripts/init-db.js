@@ -32,6 +32,7 @@ db.exec(`
   DROP TRIGGER IF EXISTS stock_after_delete;
 
   DROP TABLE IF EXISTS sessions;
+  DROP TABLE IF EXISTS visitor_events;
   DROP TABLE IF EXISTS activity_logs;
   DROP TABLE IF EXISTS stock;
   DROP TABLE IF EXISTS products;
@@ -125,6 +126,22 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE visitor_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT,
+    forwarded_for TEXT,
+    method TEXT NOT NULL,
+    path TEXT NOT NULL,
+    query_string TEXT,
+    device_type TEXT,
+    browser_name TEXT,
+    os_name TEXT,
+    user_agent TEXT,
+    referer TEXT,
+    accept_language TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE INDEX idx_products_stock_code ON products(stock_code);
   CREATE INDEX idx_products_category_active ON products(category_id, is_active);
   CREATE INDEX idx_products_active ON products(is_active);
@@ -133,6 +150,8 @@ db.exec(`
   CREATE INDEX idx_logs_table_record ON activity_logs(table_name, record_id);
   CREATE INDEX idx_sessions_token ON sessions(token);
   CREATE INDEX idx_sessions_user ON sessions(user_id);
+  CREATE INDEX idx_visitor_events_created_at ON visitor_events(created_at);
+  CREATE INDEX idx_visitor_events_ip_created ON visitor_events(ip_address, created_at);
 
   CREATE VIEW v_stock_totals AS
   SELECT
@@ -384,5 +403,5 @@ db.exec(`
 `);
 
 console.log('Database initialized successfully.');
-console.log('Schema includes users, categories, products, stock, activity_logs, sessions, view and triggers.');
+console.log('Schema includes users, categories, products, stock, activity_logs, visitor_events, sessions, view and triggers.');
 db.close();

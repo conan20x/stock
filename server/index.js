@@ -1,4 +1,6 @@
-﻿const fs = require('fs');
+﻿require('./config/loadEnv');
+
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -14,6 +16,9 @@ const importRoutes = require('./routes/import');
 const logRoutes = require('./routes/logs');
 const userRoutes = require('./routes/users');
 const pdfRoutes = require('./routes/pdf');
+const usageRoutes = require('./routes/usage');
+const visitorRoutes = require('./routes/visitors');
+const visitorTracker = require('./middleware/visitorTracker');
 
 const app = express();
 
@@ -37,6 +42,7 @@ app.use(helmet({
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
+app.use(visitorTracker);
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, source_directory: SOURCE_DIR });
@@ -100,6 +106,8 @@ app.use('/api/import', importRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/pdf', pdfRoutes);
+app.use('/api/usage', usageRoutes);
+app.use('/api/visitors', visitorRoutes);
 
 app.use(express.static(PUBLIC_DIR));
 
@@ -116,3 +124,4 @@ app.listen(PORT, () => {
   console.log(`Cafe Stock Tracker running on http://localhost:${PORT}`);
   console.log(`Source HTML directory: ${SOURCE_DIR}`);
 });
+

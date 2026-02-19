@@ -62,9 +62,16 @@ router.get('/', verifySession, requirePasswordChangeComplete, requirePermission(
         l.ip_address,
         l.user_agent,
         l.source,
-        l.created_at
+        l.created_at,
+        p.stock_code AS product_stock_code,
+        p.name AS product_name,
+        p.image_path AS product_image_path,
+        p.unit AS product_unit,
+        CAST(json_extract(l.old_values, '$.quantity') AS REAL) AS old_quantity,
+        CAST(json_extract(l.new_values, '$.quantity') AS REAL) AS new_quantity
       FROM activity_logs l
       LEFT JOIN users u ON u.id = l.user_id
+      LEFT JOIN products p ON p.id = l.record_id AND l.table_name IN ('products', 'stock')
       ${whereClause}
       ORDER BY l.created_at DESC, l.id DESC
       LIMIT ? OFFSET ?

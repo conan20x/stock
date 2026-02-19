@@ -15,6 +15,7 @@ const db = new Database(dbPath);
 
 // Enable foreign keys
 db.pragma('foreign_keys = ON');
+db.pragma('journal_mode = WAL');
 
 function normalizeForSearch(value) {
   return String(value || '')
@@ -30,5 +31,26 @@ function normalizeForSearch(value) {
 }
 
 db.function('tr_norm', { deterministic: true }, normalizeForSearch);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS visitor_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT,
+    forwarded_for TEXT,
+    method TEXT NOT NULL,
+    path TEXT NOT NULL,
+    query_string TEXT,
+    device_type TEXT,
+    browser_name TEXT,
+    os_name TEXT,
+    user_agent TEXT,
+    referer TEXT,
+    accept_language TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_visitor_events_created_at ON visitor_events(created_at);
+  CREATE INDEX IF NOT EXISTS idx_visitor_events_ip_created ON visitor_events(ip_address, created_at);
+`);
 
 module.exports = db;

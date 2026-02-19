@@ -3,6 +3,7 @@
   token: null,
   categories: [],
   products: [],
+  usageEntries: [],
   users: [],
   pagination: { page: 1, pages: 1, total: 0, limit: 50 },
   filters: {
@@ -13,22 +14,31 @@
   },
   loading: {
     products: false
+  },
+  ui: {
+    userModalMode: 'edit'
   }
 };
 
-const ADMIN_ROUTE_REGEX = /\/admin\/?$/;
-const isAdminRoute = ADMIN_ROUTE_REGEX.test(window.location.pathname);
+const ROUTE_REGEX = /\/(admin|usage)\/?$/;
+const routeMatch = window.location.pathname.match(ROUTE_REGEX);
+const currentRoute = routeMatch ? routeMatch[1] : 'home';
+const isAdminRoute = currentRoute === 'admin';
+const isUsageRoute = currentRoute === 'usage';
 
 const els = {
   mainPage: document.getElementById('mainPage'),
   adminPage: document.getElementById('adminPage'),
+  usagePage: document.getElementById('usagePage'),
   adminDenied: document.getElementById('adminDenied'),
+  usageDenied: document.getElementById('usageDenied'),
   authState: document.getElementById('authState'),
   loginForm: document.getElementById('loginForm'),
   loginUsername: document.getElementById('loginUsername'),
   loginPassword: document.getElementById('loginPassword'),
-  adminLink: document.getElementById('adminLink'),
-  adminBackLink: document.getElementById('adminBackLink'),
+  navHomeLink: document.getElementById('navHomeLink'),
+  navAdminLink: document.getElementById('navAdminLink'),
+  navUsageLink: document.getElementById('navUsageLink'),
   logoutBtn: document.getElementById('logoutBtn'),
 
   passwordGate: document.getElementById('passwordGate'),
@@ -62,15 +72,55 @@ const els = {
   logActionFilter: document.getElementById('logActionFilter'),
   loadLogsBtn: document.getElementById('loadLogsBtn'),
   logTableBody: document.getElementById('logTableBody'),
+  visitorsPanel: document.getElementById('visitorsPanel'),
+  refreshVisitorsBtn: document.getElementById('refreshVisitorsBtn'),
+  visitorTotal: document.getElementById('visitorTotal'),
+  visitorUnique: document.getElementById('visitorUnique'),
+  visitorToday: document.getElementById('visitorToday'),
+  visitorLast24h: document.getElementById('visitorLast24h'),
+  visitorDeviceHint: document.getElementById('visitorDeviceHint'),
+  visitorsTableBody: document.getElementById('visitorsTableBody'),
+
+  usagePanel: document.getElementById('usagePanel'),
+  runUsageAiBtn: document.getElementById('runUsageAiBtn'),
+  loadUsageBtn: document.getElementById('loadUsageBtn'),
+  usageTableBody: document.getElementById('usageTableBody'),
+  usage3dTotal: document.getElementById('usage3dTotal'),
+  usage3dDaily: document.getElementById('usage3dDaily'),
+  usage7dTotal: document.getElementById('usage7dTotal'),
+  usage7dDaily: document.getElementById('usage7dDaily'),
+  usage30dTotal: document.getElementById('usage30dTotal'),
+  usage30dWeekly: document.getElementById('usage30dWeekly'),
+  usageChoco30d: document.getElementById('usageChoco30d'),
+  usageChocoUnit: document.getElementById('usageChocoUnit'),
+  usageAiSummary: document.getElementById('usageAiSummary'),
+  usageAiReport: document.getElementById('usageAiReport'),
 
   usersPanel: document.getElementById('usersPanel'),
   usersTableBody: document.getElementById('usersTableBody'),
+  openCreateUserBtn: document.getElementById('openCreateUserBtn'),
   refreshUsersBtn: document.getElementById('refreshUsersBtn'),
-  createUserForm: document.getElementById('createUserForm'),
-  createUsername: document.getElementById('createUsername'),
-  createPassword: document.getElementById('createPassword'),
-  createRole: document.getElementById('createRole'),
-  createActive: document.getElementById('createActive'),
+  userModal: document.getElementById('userModal'),
+  userModalTitle: document.getElementById('userModalTitle'),
+  closeUserModalBtn: document.getElementById('closeUserModalBtn'),
+  userForm: document.getElementById('userForm'),
+  userId: document.getElementById('userId'),
+  userUsername: document.getElementById('userUsername'),
+  userRole: document.getElementById('userRole'),
+  userIsActive: document.getElementById('userIsActive'),
+  userCreatePasswordWrap: document.getElementById('userCreatePasswordWrap'),
+  userCreatePassword: document.getElementById('userCreatePassword'),
+  userPasswordResetSection: document.getElementById('userPasswordResetSection'),
+  userNewPassword: document.getElementById('userNewPassword'),
+  userResetPasswordBtn: document.getElementById('userResetPasswordBtn'),
+  applyRoleDefaultsBtn: document.getElementById('applyRoleDefaultsBtn'),
+  permCanCreateProduct: document.getElementById('permCanCreateProduct'),
+  permCanEditProduct: document.getElementById('permCanEditProduct'),
+  permCanUpdateStock: document.getElementById('permCanUpdateStock'),
+  permCanDeleteProduct: document.getElementById('permCanDeleteProduct'),
+  permCanViewLogs: document.getElementById('permCanViewLogs'),
+  permCanManageUsers: document.getElementById('permCanManageUsers'),
+  permCanScanPdf: document.getElementById('permCanScanPdf'),
 
   productModal: document.getElementById('productModal'),
   productModalTitle: document.getElementById('productModalTitle'),
@@ -122,24 +172,33 @@ function showActionColumn() {
 
 function basePath() {
   const path = window.location.pathname;
-  const cleaned = isAdminRoute ? path.replace(ADMIN_ROUTE_REGEX, '/') : path;
+  const cleaned = routeMatch ? path.replace(ROUTE_REGEX, '/') : path;
   return cleaned.endsWith('/') ? cleaned : `${cleaned}/`;
 }
 
 function updateRouteUI() {
   if (els.mainPage) {
-    els.mainPage.classList.toggle('hidden', isAdminRoute);
+    els.mainPage.classList.toggle('hidden', currentRoute !== 'home');
   }
   if (els.adminPage) {
     els.adminPage.classList.toggle('hidden', !isAdminRoute);
   }
+  if (els.usagePage) {
+    els.usagePage.classList.toggle('hidden', !isUsageRoute);
+  }
 
   const base = basePath();
-  if (els.adminLink) {
-    els.adminLink.href = `${base}admin`;
+  if (els.navHomeLink) {
+    els.navHomeLink.href = base;
+    els.navHomeLink.classList.toggle('active', currentRoute === 'home');
   }
-  if (els.adminBackLink) {
-    els.adminBackLink.href = base;
+  if (els.navAdminLink) {
+    els.navAdminLink.href = `${base}admin`;
+    els.navAdminLink.classList.toggle('active', currentRoute === 'admin');
+  }
+  if (els.navUsageLink) {
+    els.navUsageLink.href = `${base}usage`;
+    els.navUsageLink.classList.toggle('active', currentRoute === 'usage');
   }
 }
 function statusLabel(status) {
@@ -209,9 +268,21 @@ function parseLocaleNumber(value, fallback = null) {
 }
 
 function normalizeUnit(value) {
-  const normalized = String(value || '').trim().toLowerCase();
+  const normalized = String(value || '').trim().toLocaleLowerCase('tr-TR');
+  if (!normalized) {
+    return 'adet';
+  }
   if (['kg', 'kilo', 'kilogram'].includes(normalized)) {
     return 'kg';
+  }
+  if (['koli', 'koli̇'].includes(normalized)) {
+    return 'koli';
+  }
+  if (normalized === 'paket') {
+    return 'paket';
+  }
+  if (normalized === 'birim') {
+    return 'birim';
   }
   return normalized;
 }
@@ -229,6 +300,21 @@ function formatQuantityWithUnit(quantity, unit) {
     return `${numberTR(numeric)} ${normalizedUnit}`;
   }
   return numberTR(numeric);
+}
+
+function formatUsageStat(stat) {
+  if (!stat) {
+    return '0';
+  }
+  return formatQuantityWithUnit(stat.total_used, stat.unit);
+}
+
+function formatUsageRate(value, unit, label) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return `${label}: 0`;
+  }
+  return `${label}: ${formatQuantityWithUnit(numeric, unit)}`;
 }
 
 function escapeHtml(value) {
@@ -310,20 +396,34 @@ function updateAuthUI() {
   const canOperate = state.user && !mustChangePassword;
   const showActions = showActionColumn();
   const adminAllowed = Boolean(canOperate && isAdmin());
+  const usageAllowed = Boolean(canOperate && can('can_update_stock'));
 
   els.actionHeader.classList.toggle('hidden', !showActions);
   els.openCreateBtn.classList.toggle('hidden', !(canOperate && can('can_create_product')));
   els.logsPanel.classList.toggle('hidden', !(adminAllowed && can('can_view_logs')));
+  if (els.visitorsPanel) {
+    els.visitorsPanel.classList.toggle('hidden', !(adminAllowed && can('can_view_logs')));
+  }
   els.usersPanel.classList.toggle('hidden', !(adminAllowed && can('can_manage_users')));
   if (els.adminDenied) {
     els.adminDenied.classList.toggle('hidden', !isAdminRoute || adminAllowed);
   }
-
-  if (els.adminLink) {
-    els.adminLink.classList.toggle('hidden', !(canOperate && isAdmin() && !isAdminRoute));
+  if (els.usageDenied) {
+    els.usageDenied.classList.toggle('hidden', !isUsageRoute || usageAllowed);
   }
-  if (els.adminBackLink) {
-    els.adminBackLink.classList.toggle('hidden', !isAdminRoute);
+  if (els.usagePanel) {
+    els.usagePanel.classList.toggle('hidden', !(isUsageRoute && usageAllowed));
+  }
+  if (els.runUsageAiBtn) {
+    const canRunAi = Boolean(isUsageRoute && usageAllowed && isAdmin());
+    els.runUsageAiBtn.classList.toggle('hidden', !canRunAi);
+    els.runUsageAiBtn.disabled = !canRunAi;
+  }
+  if (els.navAdminLink) {
+    els.navAdminLink.classList.toggle('hidden', !(canOperate && isAdmin()));
+  }
+  if (els.navUsageLink) {
+    els.navUsageLink.classList.toggle('hidden', !usageAllowed);
   }
 }
 
@@ -550,6 +650,96 @@ async function loadMoreProducts() {
   await loadProducts();
 }
 
+function safeJsonParse(value) {
+  if (!value || typeof value !== 'string') {
+    return null;
+  }
+  try {
+    return JSON.parse(value);
+  } catch (_err) {
+    return null;
+  }
+}
+
+function toImageApiUrl(imagePath) {
+  if (!imagePath) {
+    return null;
+  }
+  return resolveAssetUrl(`/api/images/${encodeURIComponent(imagePath)}`);
+}
+
+function resolveLogProduct(log, oldValues, newValues) {
+  const stockCode = oldValues?.stock_code || newValues?.stock_code || log.product_stock_code || `#${log.record_id ?? ''}`;
+  const name = oldValues?.name || newValues?.name || log.product_name || '';
+  const unit = oldValues?.unit || newValues?.unit || log.product_unit || 'adet';
+  const imagePath = oldValues?.image_path || newValues?.image_path || log.product_image_path || null;
+  return {
+    stockCode: String(stockCode || ''),
+    name: String(name || ''),
+    unit: String(unit || 'adet'),
+    imageUrl: toImageApiUrl(imagePath)
+  };
+}
+
+function describeLog(log) {
+  const oldValues = safeJsonParse(log.old_values);
+  const newValues = safeJsonParse(log.new_values);
+  const product = resolveLogProduct(log, oldValues, newValues);
+  const productLabel = `${product.stockCode} ${product.name}`.trim();
+
+  if (log.table_name === 'products' && log.action === 'DELETE') {
+    return {
+      title: 'Ürün silindi',
+      subtitle: productLabel || `Kayıt #${log.record_id ?? '-'}`,
+      imageUrl: product.imageUrl
+    };
+  }
+
+  if (log.table_name === 'stock' && log.action === 'UPDATE') {
+    const oldQty = Number(log.old_quantity);
+    const newQty = Number(log.new_quantity);
+    if (Number.isFinite(oldQty) && Number.isFinite(newQty)) {
+      const diff = oldQty - newQty;
+      if (diff > 0) {
+        return {
+          title: 'Stok düşürüldü',
+          subtitle: `${productLabel} • ${formatQuantityWithUnit(diff, product.unit)} kullanıldı (${formatQuantityWithUnit(oldQty, product.unit)} → ${formatQuantityWithUnit(newQty, product.unit)})`,
+          imageUrl: product.imageUrl
+        };
+      }
+      if (diff < 0) {
+        return {
+          title: 'Stok artırıldı',
+          subtitle: `${productLabel} • ${formatQuantityWithUnit(Math.abs(diff), product.unit)} eklendi (${formatQuantityWithUnit(oldQty, product.unit)} → ${formatQuantityWithUnit(newQty, product.unit)})`,
+          imageUrl: product.imageUrl
+        };
+      }
+    }
+  }
+
+  if (log.table_name === 'products' && log.action === 'INSERT') {
+    return {
+      title: 'Yeni ürün eklendi',
+      subtitle: productLabel || `Kayıt #${log.record_id ?? '-'}`,
+      imageUrl: product.imageUrl
+    };
+  }
+
+  if (log.table_name === 'products' && log.action === 'UPDATE') {
+    return {
+      title: 'Ürün bilgisi güncellendi',
+      subtitle: productLabel || `Kayıt #${log.record_id ?? '-'}`,
+      imageUrl: product.imageUrl
+    };
+  }
+
+  return {
+    title: `${log.action || 'İşlem'} • ${log.table_name || 'kayıt'}`,
+    subtitle: `Kayıt #${log.record_id ?? '-'}`,
+    imageUrl: product.imageUrl
+  };
+}
+
 async function loadLogs() {
   if (!isAdminRoute) {
     return;
@@ -564,26 +754,33 @@ async function loadLogs() {
   }
 
   const data = await api(`/api/logs?${params.toString()}`);
-  const logs = data.logs || [];
+  const logs = (data.logs || []).filter((log) => !(log.table_name === 'stock' && log.action === 'DELETE'));
 
   if (!logs.length) {
-    els.logTableBody.innerHTML = '<tr><td colspan="8"><small>Kayıt bulunamadı.</small></td></tr>';
+    els.logTableBody.innerHTML = '<tr><td colspan="5"><small>Kayıt bulunamadı.</small></td></tr>';
     return;
   }
 
   els.logTableBody.innerHTML = logs
     .map((log) => {
-      const before = escapeHtml((log.old_values || '').slice(0, 160));
-      const after = escapeHtml((log.new_values || '').slice(0, 160));
+      const detail = describeLog(log);
+      const thumb = detail.imageUrl
+        ? `<img class="log-thumb" src="${escapeHtml(detail.imageUrl)}" alt="${escapeHtml(detail.title)}" loading="lazy" />`
+        : '<div class="log-thumb"></div>';
       return `
         <tr>
           <td class="mono">${escapeHtml(log.created_at || '')}</td>
           <td>${escapeHtml(log.username || 'system')}</td>
           <td class="mono">${escapeHtml(log.action)}</td>
-          <td class="mono">${escapeHtml(log.table_name || '')}</td>
-          <td class="mono">${escapeHtml(String(log.record_id ?? ''))}</td>
-          <td><small>${before || '-'}</small></td>
-          <td><small>${after || '-'}</small></td>
+          <td>
+            <div class="log-detail">
+              ${thumb}
+              <div>
+                <p class="log-title">${escapeHtml(detail.title)}</p>
+                <p class="log-subtitle">${escapeHtml(detail.subtitle)}</p>
+              </div>
+            </div>
+          </td>
           <td class="mono">${escapeHtml(log.source || '')}</td>
         </tr>
       `;
@@ -591,34 +788,714 @@ async function loadLogs() {
     .join('');
 }
 
-function userRowTemplate(user) {
+function formatVisitorDevice(value) {
+  const key = String(value || '').toLowerCase();
+  if (key === 'mobile') {
+    return 'Mobil';
+  }
+  if (key === 'tablet') {
+    return 'Tablet';
+  }
+  if (key === 'desktop') {
+    return 'Masaüstü';
+  }
+  if (key === 'bot') {
+    return 'Bot';
+  }
+  return 'Bilinmiyor';
+}
+
+function visitorRowTemplate(visitor) {
+  const browser = visitor.browser_name || '-';
+  const os = visitor.os_name || '-';
+  const page = visitor.query_string || visitor.path || '-';
+  const referer = visitor.referer || '-';
   return `
-    <tr data-user-id="${user.id}">
-      <td><input data-field="username" value="${escapeHtml(user.username)}" /></td>
-      <td>
-        <select data-field="role">
-          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
-          <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>manager</option>
-          <option value="guest" ${user.role === 'guest' ? 'selected' : ''}>guest</option>
-        </select>
-      </td>
-      <td><input type="checkbox" data-field="is_active" ${user.is_active ? 'checked' : ''} /></td>
-      <td><input type="checkbox" data-field="can_update_stock" ${user.can_update_stock ? 'checked' : ''} /></td>
-      <td><input type="checkbox" data-field="can_edit_product" ${user.can_edit_product ? 'checked' : ''} /></td>
-      <td><input type="checkbox" data-field="can_delete_product" ${user.can_delete_product ? 'checked' : ''} /></td>
-      <td><input type="checkbox" data-field="can_create_product" ${user.can_create_product ? 'checked' : ''} /></td>
-      <td><input type="checkbox" data-field="can_view_logs" ${user.can_view_logs ? 'checked' : ''} /></td>
-      <td><input type="checkbox" data-field="can_manage_users" ${user.can_manage_users ? 'checked' : ''} /></td>
-      <td><input type="checkbox" data-field="can_scan_pdf" ${user.can_scan_pdf ? 'checked' : ''} /></td>
-      <td>
-        <div class="row-actions">
-          <input type="password" data-field="new_password" placeholder="Yeni şifre" />
-          <button class="btn subtle" data-action="reset-password" type="button">Şifre</button>
-        </div>
-      </td>
-      <td><button class="btn subtle" data-action="save-user" type="button">Kaydet</button></td>
+    <tr>
+      <td class="mono">${escapeHtml(visitor.created_at || '')}</td>
+      <td class="mono">${escapeHtml(visitor.ip_address || '-')}</td>
+      <td>${escapeHtml(formatVisitorDevice(visitor.device_type))}</td>
+      <td>${escapeHtml(`${browser} / ${os}`)}</td>
+      <td class="mono">${escapeHtml(page)}</td>
+      <td class="mono">${escapeHtml(referer)}</td>
     </tr>
   `;
+}
+
+function resetVisitorSummary() {
+  if (!els.visitorTotal) {
+    return;
+  }
+  els.visitorTotal.textContent = '0';
+  els.visitorUnique.textContent = '0';
+  els.visitorToday.textContent = '0';
+  els.visitorLast24h.textContent = '0';
+  if (els.visitorDeviceHint) {
+    els.visitorDeviceHint.textContent = 'Cihaz dağılımı yüklenmedi.';
+  }
+  if (els.visitorsTableBody) {
+    els.visitorsTableBody.innerHTML = '<tr><td colspan="6"><small>Kayıt bulunamadı.</small></td></tr>';
+  }
+}
+
+function renderVisitorSummary(summary) {
+  if (!els.visitorTotal) {
+    return;
+  }
+
+  els.visitorTotal.textContent = numberTR(summary.total_visits || 0);
+  els.visitorUnique.textContent = numberTR(summary.unique_visitors || 0);
+  els.visitorToday.textContent = numberTR(summary.visits_today || 0);
+  els.visitorLast24h.textContent = numberTR(summary.visits_last_24h || 0);
+
+  const deviceText = (summary.devices || [])
+    .map((item) => `${formatVisitorDevice(item.device_type)}: ${numberTR(item.visits)}`)
+    .join(' • ');
+
+  if (els.visitorDeviceHint) {
+    els.visitorDeviceHint.textContent = deviceText
+      ? `Son 30 gün cihaz dağılımı: ${deviceText}`
+      : 'Cihaz dağılımı verisi yok.';
+  }
+}
+
+async function loadVisitors() {
+  if (!isAdminRoute) {
+    return;
+  }
+  if (!can('can_view_logs') || state.user?.must_change_password) {
+    return;
+  }
+
+  const [summaryData, listData] = await Promise.all([
+    api('/api/visitors/summary'),
+    api('/api/visitors?limit=120')
+  ]);
+
+  renderVisitorSummary(summaryData.summary || {});
+
+  const visitors = listData.visitors || [];
+  if (!visitors.length) {
+    els.visitorsTableBody.innerHTML = '<tr><td colspan="6"><small>Kayıt bulunamadı.</small></td></tr>';
+    return;
+  }
+  els.visitorsTableBody.innerHTML = visitors.map(visitorRowTemplate).join('');
+}
+
+function usageRowTemplate(entry) {
+  const imageHtml = entry.image_url
+    ? `<img class="log-thumb" src="${escapeHtml(resolveAssetUrl(entry.image_url))}" alt="${escapeHtml(entry.name || '')}" loading="lazy" />`
+    : '<div class="log-thumb"></div>';
+
+  return `
+    <tr>
+      <td class="mono">${escapeHtml(entry.created_at || '')}</td>
+      <td>
+        <div class="usage-product">
+          ${imageHtml}
+          <div>
+            <p class="log-title">${escapeHtml(`${entry.stock_code || ''} ${entry.name || ''}`.trim())}</p>
+            <p class="log-subtitle">${escapeHtml(entry.unit || 'adet')}</p>
+          </div>
+        </div>
+      </td>
+      <td class="mono">-${escapeHtml(formatQuantityWithUnit(entry.used_quantity, entry.unit))}</td>
+      <td class="mono">${escapeHtml(formatQuantityWithUnit(entry.old_quantity, entry.unit))}</td>
+      <td class="mono">${escapeHtml(formatQuantityWithUnit(entry.new_quantity, entry.unit))}</td>
+      <td>${escapeHtml(entry.username || 'system')}</td>
+    </tr>
+  `;
+}
+
+function normalizeSearchText(value) {
+  return String(value || '')
+    .toLocaleLowerCase('tr-TR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i')
+    .trim();
+}
+
+function parseSqliteDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) {
+    return null;
+  }
+
+  const baseIso = raw.includes('T') ? raw : raw.replace(' ', 'T');
+  const utcDate = new Date(baseIso.endsWith('Z') ? baseIso : `${baseIso}Z`);
+  if (!Number.isNaN(utcDate.getTime())) {
+    return utcDate;
+  }
+
+  const localDate = new Date(baseIso);
+  if (!Number.isNaN(localDate.getTime())) {
+    return localDate;
+  }
+
+  return null;
+}
+
+function usageTotalsByUnit(entries, maxDays, nowMs) {
+  const totalsByUnit = new Map();
+  let totalUsed = 0;
+
+  for (const entry of entries) {
+    const qty = Number(entry.used_quantity || 0);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      continue;
+    }
+
+    const createdAt = parseSqliteDate(entry.created_at);
+    if (!createdAt) {
+      continue;
+    }
+
+    const diffDays = (nowMs - createdAt.getTime()) / 86400000;
+    if (!Number.isFinite(diffDays) || diffDays < 0 || diffDays > maxDays) {
+      continue;
+    }
+
+    const unit = normalizeUnit(entry.unit);
+    totalUsed += qty;
+    totalsByUnit.set(unit, (totalsByUnit.get(unit) || 0) + qty);
+  }
+
+  return {
+    totalUsed: Number(totalUsed.toFixed(3)),
+    totalsByUnit
+  };
+}
+
+function pickUsageUnit(totalsByUnit) {
+  if (!totalsByUnit || !totalsByUnit.size) {
+    return 'adet';
+  }
+  if (totalsByUnit.size === 1) {
+    return totalsByUnit.keys().next().value;
+  }
+  return 'birim';
+}
+
+function buildUsageInsightsFromEntries(entries) {
+  const nowMs = Date.now();
+
+  const totals3 = usageTotalsByUnit(entries, 3, nowMs);
+  const totals7 = usageTotalsByUnit(entries, 7, nowMs);
+  const totals30 = usageTotalsByUnit(entries, 30, nowMs);
+
+  const d3 = {
+    total_used: totals3.totalUsed,
+    unit: pickUsageUnit(totals3.totalsByUnit),
+    daily_avg: Number((totals3.totalUsed / 3).toFixed(3))
+  };
+  const d7 = {
+    total_used: totals7.totalUsed,
+    unit: pickUsageUnit(totals7.totalsByUnit),
+    daily_avg: Number((totals7.totalUsed / 7).toFixed(3))
+  };
+  const d30 = {
+    total_used: totals30.totalUsed,
+    unit: pickUsageUnit(totals30.totalsByUnit),
+    weekly_avg: Number((totals30.totalUsed / (30 / 7)).toFixed(3))
+  };
+
+  const chocolateEntries = entries.filter((entry) => {
+    const fullName = normalizeSearchText(`${entry.stock_code || ''} ${entry.name || ''}`);
+    return fullName.includes('cikolata') || fullName.includes('chocolate');
+  });
+
+  const chocoTotals = usageTotalsByUnit(chocolateEntries, 30, nowMs);
+  const choco = {
+    total_used: chocoTotals.totalUsed,
+    unit: pickUsageUnit(chocoTotals.totalsByUnit)
+  };
+
+  const summaryText = [
+    `Son 3 günde ${formatQuantityWithUnit(d3.total_used, d3.unit)} kullanım var.`,
+    `Son 7 günde günlük ortalama ${formatQuantityWithUnit(d7.daily_avg, d7.unit)}.`,
+    `Son 30 günde toplam ${formatQuantityWithUnit(d30.total_used, d30.unit)} tüketildi.`,
+    `Çikolata ürünlerinde 30 gün toplam ${formatQuantityWithUnit(choco.total_used, choco.unit)} kullanım görünüyor.`
+  ].join(' ');
+
+  return {
+    by_period: { d3, d7, d30 },
+    chocolate: choco,
+    summary_text: summaryText,
+    summary_source: 'local'
+  };
+}
+
+function insightsTotalUsed(insights) {
+  const byPeriod = insights?.by_period || {};
+  const d3 = Number(byPeriod?.d3?.total_used || 0);
+  const d7 = Number(byPeriod?.d7?.total_used || 0);
+  const d30 = Number(byPeriod?.d30?.total_used || 0);
+  const choco = Number(insights?.chocolate?.total_used || 0);
+  return [d3, d7, d30, choco]
+    .filter((value) => Number.isFinite(value))
+    .reduce((sum, value) => sum + value, 0);
+}
+
+async function loadUsage() {
+  if (!isUsageRoute) {
+    return;
+  }
+  if (!can('can_update_stock') || state.user?.must_change_password) {
+    return;
+  }
+
+  const data = await api('/api/usage?limit=200');
+  const entries = data.entries || [];
+  state.usageEntries = entries;
+
+  if (!entries.length) {
+    els.usageTableBody.innerHTML = '<tr><td colspan="6"><small>Kayıt bulunamadı.</small></td></tr>';
+    resetUsageInsights();
+    resetUsageAiReport();
+    return;
+  }
+
+  els.usageTableBody.innerHTML = entries.map(usageRowTemplate).join('');
+  renderUsageInsights(buildUsageInsightsFromEntries(entries));
+}
+
+function renderUsageInsights(insights) {
+  const emptyPeriod = { total_used: 0, unit: 'adet', daily_avg: 0, weekly_avg: 0 };
+  const byPeriod = insights?.by_period || {};
+  const d3 = byPeriod.d3 || emptyPeriod;
+  const d7 = byPeriod.d7 || emptyPeriod;
+  const d30 = byPeriod.d30 || emptyPeriod;
+
+  const choco = insights?.chocolate || { total_used: 0, unit: 'kg' };
+
+  els.usage3dTotal.textContent = formatUsageStat(d3);
+  els.usage3dDaily.textContent = formatUsageRate(d3.daily_avg, d3.unit, 'Günlük ort');
+
+  els.usage7dTotal.textContent = formatUsageStat(d7);
+  els.usage7dDaily.textContent = formatUsageRate(d7.daily_avg, d7.unit, 'Günlük ort');
+
+  els.usage30dTotal.textContent = formatUsageStat(d30);
+  els.usage30dWeekly.textContent = formatUsageRate(d30.weekly_avg, d30.unit, 'Haftalık ort');
+
+  els.usageChoco30d.textContent = formatQuantityWithUnit(choco.total_used, choco.unit || 'kg');
+  els.usageChocoUnit.textContent = `Birim: ${(choco.unit || '-').toUpperCase()}`;
+
+  const localSummary = [
+    `Son 3 günde ${formatQuantityWithUnit(d3.total_used, d3.unit)} kullanım var.`,
+    `Günlük ortalama ${formatQuantityWithUnit(d3.daily_avg, d3.unit)}.`,
+    `Son 30 günde toplam ${formatQuantityWithUnit(d30.total_used, d30.unit)} tüketildi.`,
+    `Çikolata ürünlerinde 30 gün toplam ${formatQuantityWithUnit(choco.total_used, choco.unit || 'kg')} kullanım görünüyor.`
+  ].join(' ');
+
+  els.usageAiSummary.textContent = insights?.summary_text || localSummary;
+}
+
+function resetUsageInsights() {
+  renderUsageInsights({
+    by_period: {
+      d3: { total_used: 0, unit: 'adet', daily_avg: 0 },
+      d7: { total_used: 0, unit: 'adet', daily_avg: 0 },
+      d30: { total_used: 0, unit: 'adet', weekly_avg: 0 }
+    },
+    chocolate: { total_used: 0, unit: 'kg' },
+    summary_text: 'Kullanım özeti yüklenmedi.'
+  });
+}
+
+function resetUsageAiReport() {
+  if (!els.usageAiReport) {
+    return;
+  }
+  els.usageAiReport.classList.add('hidden');
+  els.usageAiReport.textContent = '';
+}
+
+function renderUsageAiReport(result) {
+  if (!els.usageAiReport) {
+    return;
+  }
+
+  const lines = [];
+  lines.push(result.analysis_text || 'Analiz sonucu bulunamadi.');
+
+  if (result.model) {
+    lines.push('');
+    lines.push(`Model: ${result.model}`);
+  }
+  if (result.generated_at) {
+    lines.push(`Olusturma zamani: ${result.generated_at}`);
+  }
+  if (result.warning) {
+    lines.push(`Uyari: ${result.warning}`);
+  }
+
+  els.usageAiReport.textContent = lines.join('\n');
+  els.usageAiReport.classList.remove('hidden');
+}
+
+async function runUsageAiAnalysis() {
+  if (!isUsageRoute) {
+    return;
+  }
+  if (!state.user || state.user.role !== 'admin') {
+    showToast('Bu analiz sadece admin icin acik.', 'error');
+    return;
+  }
+
+  if (!els.runUsageAiBtn) {
+    return;
+  }
+
+  const originalText = els.runUsageAiBtn.textContent;
+  els.runUsageAiBtn.disabled = true;
+  els.runUsageAiBtn.textContent = 'Analiz yapiliyor...';
+
+  try {
+    const result = await api('/api/usage/ai-analysis', { method: 'POST' });
+    renderUsageAiReport(result);
+    showToast('AI analizi tamamlandi.', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    els.runUsageAiBtn.disabled = false;
+    els.runUsageAiBtn.textContent = originalText;
+  }
+}
+
+async function loadUsageInsights() {
+  if (!isUsageRoute) {
+    return;
+  }
+  if (!can('can_update_stock') || state.user?.must_change_password) {
+    return;
+  }
+
+  try {
+    const data = await api('/api/usage/insights');
+    const remoteInsights = data.insights || null;
+    if (state.usageEntries.length) {
+      const localInsights = buildUsageInsightsFromEntries(state.usageEntries);
+      if (insightsTotalUsed(remoteInsights) <= 0 && insightsTotalUsed(localInsights) > 0) {
+        renderUsageInsights(localInsights);
+        return;
+      }
+    }
+    renderUsageInsights(remoteInsights);
+  } catch (err) {
+    console.warn('Usage insights endpoint unavailable, local summary used.', err?.message || err);
+    if (state.usageEntries.length) {
+      renderUsageInsights(buildUsageInsightsFromEntries(state.usageEntries));
+    }
+  }
+}
+
+const ROLE_DEFAULT_PERMISSIONS = {
+  admin: {
+    can_create_product: true,
+    can_edit_product: true,
+    can_update_stock: true,
+    can_delete_product: true,
+    can_view_logs: true,
+    can_manage_users: true,
+    can_scan_pdf: true
+  },
+  manager: {
+    can_create_product: false,
+    can_edit_product: false,
+    can_update_stock: true,
+    can_delete_product: false,
+    can_view_logs: false,
+    can_manage_users: false,
+    can_scan_pdf: true
+  },
+  guest: {
+    can_create_product: false,
+    can_edit_product: false,
+    can_update_stock: false,
+    can_delete_product: false,
+    can_view_logs: false,
+    can_manage_users: false,
+    can_scan_pdf: false
+  }
+};
+
+function permissionInputs() {
+  return [
+    els.permCanCreateProduct,
+    els.permCanEditProduct,
+    els.permCanUpdateStock,
+    els.permCanDeleteProduct,
+    els.permCanViewLogs,
+    els.permCanManageUsers,
+    els.permCanScanPdf
+  ];
+}
+
+function collectPermissionsFromModal() {
+  return {
+    can_create_product: Boolean(els.permCanCreateProduct.checked),
+    can_edit_product: Boolean(els.permCanEditProduct.checked),
+    can_update_stock: Boolean(els.permCanUpdateStock.checked),
+    can_delete_product: Boolean(els.permCanDeleteProduct.checked),
+    can_view_logs: Boolean(els.permCanViewLogs.checked),
+    can_manage_users: Boolean(els.permCanManageUsers.checked),
+    can_scan_pdf: Boolean(els.permCanScanPdf.checked)
+  };
+}
+
+function applyPermissionsToModal(permissions) {
+  els.permCanCreateProduct.checked = Boolean(permissions.can_create_product);
+  els.permCanEditProduct.checked = Boolean(permissions.can_edit_product);
+  els.permCanUpdateStock.checked = Boolean(permissions.can_update_stock);
+  els.permCanDeleteProduct.checked = Boolean(permissions.can_delete_product);
+  els.permCanViewLogs.checked = Boolean(permissions.can_view_logs);
+  els.permCanManageUsers.checked = Boolean(permissions.can_manage_users);
+  els.permCanScanPdf.checked = Boolean(permissions.can_scan_pdf);
+}
+
+function syncPermissionStateByRole() {
+  const selectedRole = els.userRole.value;
+  const isRoleAdmin = selectedRole === 'admin';
+  permissionInputs().forEach((input) => {
+    if (isRoleAdmin) {
+      input.checked = true;
+    }
+    input.disabled = isRoleAdmin;
+  });
+}
+
+function roleDefaults(role) {
+  return ROLE_DEFAULT_PERMISSIONS[role] || ROLE_DEFAULT_PERMISSIONS.guest;
+}
+
+function findUserById(userId) {
+  return state.users.find((user) => user.id === userId) || null;
+}
+
+function closeAllUserMenus() {
+  document.querySelectorAll('.user-menu').forEach((menu) => {
+    menu.classList.add('hidden');
+  });
+}
+
+function userRowTemplate(user) {
+  const statusClass = user.is_active ? 'good' : 'low';
+  const statusLabelText = user.is_active ? 'Aktif' : 'Pasif';
+  const toggleActiveText = user.is_active ? 'Pasif Yap' : 'Aktif Et';
+
+  return `
+    <tr data-user-id="${user.id}">
+      <td>${escapeHtml(user.username)}</td>
+      <td><span class="user-role">${escapeHtml(user.role)}</span></td>
+      <td><span class="tag ${statusClass}">${statusLabelText}</span></td>
+      <td class="mono">${escapeHtml(user.last_login || '-')}</td>
+      <td>
+        <div class="user-actions-menu">
+          <button type="button" class="icon-btn" data-action="toggle-user-menu" aria-label="Kullanıcı işlemleri">...</button>
+          <div class="user-menu hidden">
+            <button type="button" data-action="edit-user">Kullanıcıyı Düzenle</button>
+            <button type="button" data-action="password-user">Şifre Güncelle</button>
+            <button type="button" data-action="toggle-active-user">${toggleActiveText}</button>
+          </div>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function openUserModalForCreate() {
+  if (!can('can_manage_users')) {
+    showToast('Bu işlem için yetkiniz yok.', 'error');
+    return;
+  }
+
+  state.ui.userModalMode = 'create';
+  els.userModalTitle.textContent = 'Yeni Kullanıcı';
+  els.userId.value = '';
+  els.userUsername.value = '';
+  els.userRole.value = 'manager';
+  els.userIsActive.checked = true;
+  els.userCreatePassword.value = '';
+  els.userNewPassword.value = '';
+
+  els.userCreatePasswordWrap.classList.remove('hidden');
+  els.userPasswordResetSection.classList.add('hidden');
+  els.userCreatePassword.required = true;
+
+  applyPermissionsToModal(roleDefaults('manager'));
+  syncPermissionStateByRole();
+  els.userModal.classList.remove('hidden');
+}
+
+function openUserModalForEdit(userId, focusPassword = false) {
+  if (!can('can_manage_users')) {
+    showToast('Bu işlem için yetkiniz yok.', 'error');
+    return;
+  }
+
+  const user = findUserById(userId);
+  if (!user) {
+    showToast('Kullanıcı bulunamadı.', 'error');
+    return;
+  }
+
+  state.ui.userModalMode = 'edit';
+  els.userModalTitle.textContent = `Kullanıcı: ${user.username}`;
+  els.userId.value = String(user.id);
+  els.userUsername.value = user.username;
+  els.userRole.value = user.role;
+  els.userIsActive.checked = Boolean(user.is_active);
+  els.userCreatePassword.value = '';
+  els.userNewPassword.value = '';
+
+  els.userCreatePasswordWrap.classList.add('hidden');
+  els.userPasswordResetSection.classList.remove('hidden');
+  els.userCreatePassword.required = false;
+
+  applyPermissionsToModal({
+    can_create_product: user.can_create_product,
+    can_edit_product: user.can_edit_product,
+    can_update_stock: user.can_update_stock,
+    can_delete_product: user.can_delete_product,
+    can_view_logs: user.can_view_logs,
+    can_manage_users: user.can_manage_users,
+    can_scan_pdf: user.can_scan_pdf
+  });
+
+  syncPermissionStateByRole();
+  els.userModal.classList.remove('hidden');
+
+  if (focusPassword) {
+    setTimeout(() => els.userNewPassword.focus(), 20);
+  }
+}
+
+function closeUserModal() {
+  els.userModal.classList.add('hidden');
+}
+
+function buildUpdatePayloadFromUser(user, overrides = {}) {
+  return {
+    username: overrides.username ?? user.username,
+    role: overrides.role ?? user.role,
+    is_active: overrides.is_active ?? Boolean(user.is_active),
+    can_create_product: overrides.can_create_product ?? Boolean(user.can_create_product),
+    can_edit_product: overrides.can_edit_product ?? Boolean(user.can_edit_product),
+    can_update_stock: overrides.can_update_stock ?? Boolean(user.can_update_stock),
+    can_delete_product: overrides.can_delete_product ?? Boolean(user.can_delete_product),
+    can_view_logs: overrides.can_view_logs ?? Boolean(user.can_view_logs),
+    can_manage_users: overrides.can_manage_users ?? Boolean(user.can_manage_users),
+    can_scan_pdf: overrides.can_scan_pdf ?? Boolean(user.can_scan_pdf)
+  };
+}
+
+async function saveUserFromModal(event) {
+  event.preventDefault();
+
+  const username = els.userUsername.value.trim();
+  const role = els.userRole.value;
+  const is_active = Boolean(els.userIsActive.checked);
+
+  if (!username) {
+    showToast('Kullanıcı adı boş olamaz.', 'error');
+    return;
+  }
+
+  if (state.ui.userModalMode === 'create') {
+    const password = els.userCreatePassword.value;
+    if (!password || password.length < 8) {
+      showToast('Geçici şifre en az 8 karakter olmalı.', 'error');
+      return;
+    }
+
+    const created = await api('/api/users', {
+      method: 'POST',
+      body: JSON.stringify({ username, password, role, is_active })
+    });
+
+    if (created?.user?.id) {
+      await api(`/api/users/${created.user.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          username,
+          role,
+          is_active,
+          ...collectPermissionsFromModal()
+        })
+      });
+    }
+
+    closeUserModal();
+    await loadUsers();
+    showToast('Kullanıcı eklendi.', 'success');
+    return;
+  }
+
+  const userId = Number(els.userId.value);
+  const payload = {
+    username,
+    role,
+    is_active,
+    ...collectPermissionsFromModal()
+  };
+
+  await api(`/api/users/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+
+  closeUserModal();
+  await loadUsers();
+  showToast('Kullanıcı güncellendi.', 'success');
+}
+
+async function resetUserPasswordFromModal() {
+  const userId = Number(els.userId.value);
+  const newPassword = els.userNewPassword.value;
+
+  if (!userId) {
+    showToast('Önce kullanıcı seçin.', 'error');
+    return;
+  }
+  if (!newPassword || newPassword.length < 8) {
+    showToast('Yeni şifre en az 8 karakter olmalı.', 'error');
+    return;
+  }
+
+  await api(`/api/users/${userId}/password`, {
+    method: 'PUT',
+    body: JSON.stringify({ new_password: newPassword })
+  });
+
+  els.userNewPassword.value = '';
+  showToast('Şifre güncellendi.', 'success');
+}
+
+async function toggleUserActiveQuick(userId) {
+  if (!can('can_manage_users')) {
+    showToast('Bu işlem için yetkiniz yok.', 'error');
+    return;
+  }
+
+  const user = findUserById(userId);
+  if (!user) {
+    showToast('Kullanıcı bulunamadı.', 'error');
+    return;
+  }
+
+  const nextActive = !Boolean(user.is_active);
+  await api(`/api/users/${user.id}`, {
+    method: 'PUT',
+    body: JSON.stringify(buildUpdatePayloadFromUser(user, { is_active: nextActive }))
+  });
+
+  await loadUsers();
+  showToast(nextActive ? 'Kullanıcı aktifleştirildi.' : 'Kullanıcı pasifleştirildi.', 'success');
 }
 
 async function loadUsers() {
@@ -633,7 +1510,7 @@ async function loadUsers() {
   state.users = data.users || [];
 
   if (!state.users.length) {
-    els.usersTableBody.innerHTML = '<tr><td colspan="12"><small>Kullanıcı bulunamadı.</small></td></tr>';
+    els.usersTableBody.innerHTML = '<tr><td colspan="5"><small>Kullanıcı bulunamadı.</small></td></tr>';
     return;
   }
 
@@ -775,85 +1652,6 @@ async function deleteProduct(productId) {
   }
 }
 
-async function saveUserFromRow(row) {
-  const userId = Number(row.dataset.userId);
-  const usernameInput = row.querySelector('[data-field="username"]');
-  const username = usernameInput ? usernameInput.value.trim() : '';
-
-  if (!username) {
-    throw new Error('Kullanıcı adı boş olamaz.');
-  }
-
-  const payload = {
-    username,
-    role: row.querySelector('[data-field="role"]').value,
-    is_active: row.querySelector('[data-field="is_active"]').checked,
-    can_create_product: row.querySelector('[data-field="can_create_product"]').checked,
-    can_edit_product: row.querySelector('[data-field="can_edit_product"]').checked,
-    can_update_stock: row.querySelector('[data-field="can_update_stock"]').checked,
-    can_delete_product: row.querySelector('[data-field="can_delete_product"]').checked,
-    can_view_logs: row.querySelector('[data-field="can_view_logs"]').checked,
-    can_manage_users: row.querySelector('[data-field="can_manage_users"]').checked,
-    can_scan_pdf: row.querySelector('[data-field="can_scan_pdf"]').checked
-  };
-
-  await api(`/api/users/${userId}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload)
-  });
-}
-
-async function resetUserPasswordFromRow(row) {
-  const userId = Number(row.dataset.userId);
-  const input = row.querySelector('[data-field="new_password"]');
-  const newPassword = input.value;
-
-  if (!newPassword || newPassword.length < 8) {
-    throw new Error('Yeni şifre en az 8 karakter olmalı.');
-  }
-
-  await api(`/api/users/${userId}/password`, {
-    method: 'PUT',
-    body: JSON.stringify({ new_password: newPassword })
-  });
-
-  input.value = '';
-}
-
-async function createUser() {
-  if (!can('can_manage_users')) {
-    showToast('Bu işlem için yetkiniz yok.', 'error');
-    return;
-  }
-
-  const username = els.createUsername.value.trim();
-  const password = els.createPassword.value;
-  const role = els.createRole.value;
-  const is_active = els.createActive.checked;
-
-  if (!username || !password) {
-    showToast('Kullanıcı adı ve şifre zorunludur.', 'error');
-    return;
-  }
-
-  try {
-    await api('/api/users', {
-      method: 'POST',
-      body: JSON.stringify({ username, password, role, is_active })
-    });
-
-    els.createUsername.value = '';
-    els.createPassword.value = '';
-    els.createRole.value = 'manager';
-    els.createActive.checked = true;
-
-    await loadUsers();
-    showToast('Kullanıcı eklendi.', 'success');
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
-}
-
 async function handleLogin(event) {
   event.preventDefault();
 
@@ -882,11 +1680,15 @@ async function handleLogin(event) {
       const jobs = [];
       if (can('can_view_logs')) {
         jobs.push(loadLogs());
+        jobs.push(loadVisitors());
       }
       if (can('can_manage_users')) {
         jobs.push(loadUsers());
       }
       await Promise.all(jobs);
+    }
+    if (isUsageRoute && can('can_update_stock') && !state.user.must_change_password) {
+      await Promise.all([loadUsage(), loadUsageInsights()]);
     }
 
     showToast('Giriş başarılı.', 'success');
@@ -904,6 +1706,7 @@ async function handleLogout() {
 
   state.user = null;
   state.token = null;
+  state.usageEntries = [];
   state.filters = {
     search: '',
     category: '',
@@ -919,6 +1722,18 @@ async function handleLogout() {
   await Promise.all([loadSummary(), loadProducts({ reset: true }), loadAlerts()]);
   els.logTableBody.innerHTML = '';
   els.usersTableBody.innerHTML = '';
+  if (els.visitorsTableBody) {
+    resetVisitorSummary();
+  }
+  if (els.usageTableBody) {
+    els.usageTableBody.innerHTML = '';
+  }
+  if (els.usageAiSummary) {
+    resetUsageInsights();
+  }
+  if (els.usageAiReport) {
+    resetUsageAiReport();
+  }
 
   showToast('Çıkış yapıldı.', 'success');
 }
@@ -947,11 +1762,15 @@ async function handlePasswordChange(event) {
       const jobs = [];
       if (can('can_view_logs')) {
         jobs.push(loadLogs());
+        jobs.push(loadVisitors());
       }
       if (can('can_manage_users')) {
         jobs.push(loadUsers());
       }
       await Promise.all(jobs);
+    }
+    if (isUsageRoute && can('can_update_stock')) {
+      await Promise.all([loadUsage(), loadUsageInsights()]);
     }
 
     showToast('Şifre güncellendi.', 'success');
@@ -992,19 +1811,33 @@ function onUsersTableClick(event) {
     return;
   }
 
-  if (button.dataset.action === 'save-user') {
-    saveUserFromRow(row)
-      .then(async () => {
-        showToast('Kullanıcı yetkileri kaydedildi.', 'success');
-        await loadUsers();
-      })
-      .catch((err) => showToast(err.message, 'error'));
+  const userId = Number(row.dataset.userId);
+  const action = button.dataset.action;
+
+  if (action === 'toggle-user-menu') {
+    const menu = button.nextElementSibling;
+    const isOpen = menu && !menu.classList.contains('hidden');
+    closeAllUserMenus();
+    if (menu && !isOpen) {
+      menu.classList.remove('hidden');
+    }
+    return;
   }
 
-  if (button.dataset.action === 'reset-password') {
-    resetUserPasswordFromRow(row)
-      .then(() => showToast('Kullanıcı şifresi sıfırlandı.', 'success'))
-      .catch((err) => showToast(err.message, 'error'));
+  closeAllUserMenus();
+
+  if (action === 'edit-user') {
+    openUserModalForEdit(userId, false);
+    return;
+  }
+
+  if (action === 'password-user') {
+    openUserModalForEdit(userId, true);
+    return;
+  }
+
+  if (action === 'toggle-active-user') {
+    toggleUserActiveQuick(userId).catch((err) => showToast(err.message, 'error'));
   }
 }
 
@@ -1090,11 +1923,65 @@ function bindEvents() {
   els.loadLogsBtn.addEventListener('click', () => {
     loadLogs().catch((err) => showToast(err.message, 'error'));
   });
+  if (els.refreshVisitorsBtn) {
+    els.refreshVisitorsBtn.addEventListener('click', () => {
+      loadVisitors().catch((err) => showToast(err.message, 'error'));
+    });
+  }
+  if (els.loadUsageBtn) {
+    els.loadUsageBtn.addEventListener('click', () => {
+      Promise.all([loadUsage(), loadUsageInsights()]).catch((err) => showToast(err.message, 'error'));
+    });
+  }
+  if (els.runUsageAiBtn) {
+    els.runUsageAiBtn.addEventListener('click', () => {
+      runUsageAiAnalysis().catch((err) => showToast(err.message, 'error'));
+    });
+  }
 
   els.refreshUsersBtn.addEventListener('click', () => {
     loadUsers().catch((err) => showToast(err.message, 'error'));
   });
+  if (els.openCreateUserBtn) {
+    els.openCreateUserBtn.addEventListener('click', openUserModalForCreate);
+  }
   els.usersTableBody.addEventListener('click', onUsersTableClick);
+
+  if (els.userForm) {
+    els.userForm.addEventListener('submit', (event) => {
+      saveUserFromModal(event).catch((err) => showToast(err.message, 'error'));
+    });
+  }
+  if (els.closeUserModalBtn) {
+    els.closeUserModalBtn.addEventListener('click', closeUserModal);
+  }
+  if (els.userResetPasswordBtn) {
+    els.userResetPasswordBtn.addEventListener('click', () => {
+      resetUserPasswordFromModal().catch((err) => showToast(err.message, 'error'));
+    });
+  }
+  if (els.applyRoleDefaultsBtn) {
+    els.applyRoleDefaultsBtn.addEventListener('click', () => {
+      applyPermissionsToModal(roleDefaults(els.userRole.value));
+      syncPermissionStateByRole();
+    });
+  }
+  if (els.userRole) {
+    els.userRole.addEventListener('change', syncPermissionStateByRole);
+  }
+  if (els.userModal) {
+    els.userModal.addEventListener('click', (event) => {
+      if (event.target === els.userModal) {
+        closeUserModal();
+      }
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.user-actions-menu')) {
+      closeAllUserMenus();
+    }
+  });
 
   if (els.scrollSentinel && els.productTableWrap) {
     const observer = new IntersectionObserver(
@@ -1110,13 +1997,6 @@ function bindEvents() {
       }
     );
     observer.observe(els.scrollSentinel);
-  }
-
-  if (els.createUserForm) {
-    els.createUserForm.addEventListener('submit', (event) => {
-      event.preventDefault();
-      createUser().catch((err) => showToast(err.message, 'error'));
-    });
   }
 
   els.productModal.addEventListener('click', (event) => {
@@ -1135,6 +2015,15 @@ function bindEvents() {
 async function bootstrap() {
   bindEvents();
   updateRouteUI();
+  if (els.visitorTotal) {
+    resetVisitorSummary();
+  }
+  if (els.usageAiSummary) {
+    resetUsageInsights();
+  }
+  if (els.usageAiReport) {
+    resetUsageAiReport();
+  }
 
   try {
     await refreshSession();
@@ -1142,7 +2031,18 @@ async function bootstrap() {
     await Promise.all([loadSummary(), loadProducts({ reset: true }), loadAlerts()]);
 
     if (isAdminRoute && isAdmin() && state.user && !state.user.must_change_password) {
-      await Promise.all([loadLogs(), loadUsers()]);
+      const jobs = [];
+      if (can('can_view_logs')) {
+        jobs.push(loadLogs());
+        jobs.push(loadVisitors());
+      }
+      if (can('can_manage_users')) {
+        jobs.push(loadUsers());
+      }
+      await Promise.all(jobs);
+    }
+    if (isUsageRoute && state.user && !state.user.must_change_password && can('can_update_stock')) {
+      await Promise.all([loadUsage(), loadUsageInsights()]);
     }
   } catch (err) {
     console.error(err);
