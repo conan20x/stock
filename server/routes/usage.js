@@ -33,6 +33,14 @@ const USAGE_ROWS_SINCE_SQL = `
     AND datetime(l.created_at) >= datetime('now', ?)
 `;
 
+const USAGE_DIFF_SQL = `
+  ROUND(
+    CAST(json_extract(l.old_values, '$.quantity') AS REAL) -
+    CAST(json_extract(l.new_values, '$.quantity') AS REAL),
+    3
+  )
+`;
+
 const TRACKED_CATEGORY_ORDER = [
   'bar_soslar',
   'cikolata',
@@ -129,6 +137,40 @@ function parseSqliteDate(value) {
 
 function rowsSinceDays(days) {
   return db.prepare(USAGE_ROWS_SINCE_SQL).all(`-${days} day`);
+}
+
+function fetchTopUsedProducts(limit = 7) {
+  const rows = db.prepare(`
+    SELECT
+      p.id AS product_id,
+      p.stock_code,
+      p.name,
+      p.unit,
+      p.image_path,
+      ROUND(SUM(CASE WHEN datetime(l.created_at) >= datetime('now', '-7 day') THEN ${USAGE_DIFF_SQL} ELSE 0 END), 3) AS used_7d,
+      ROUND(SUM(CASE WHEN datetime(l.created_at) >= datetime('now', '-15 day') THEN ${USAGE_DIFF_SQL} ELSE 0 END), 3) AS used_15d,
+      ROUND(SUM(${USAGE_DIFF_SQL}), 3) AS used_30d
+    FROM activity_logs l
+    JOIN products p ON p.id = l.record_id
+    WHERE
+      ${USAGE_DECREASE_FILTER}
+      AND datetime(l.created_at) >= datetime('now', '-30 day')
+    GROUP BY p.id, p.stock_code, p.name, p.unit, p.image_path
+    HAVING ROUND(SUM(${USAGE_DIFF_SQL}), 3) > 0
+    ORDER BY used_30d DESC, p.name ASC
+    LIMIT ?
+  `).all(limit);
+
+  return rows.map((row) => ({
+    product_id: row.product_id,
+    stock_code: row.stock_code || '',
+    name: row.name || '',
+    unit: normalizeUnit(row.unit),
+    image_url: toImageUrl(row.image_path),
+    used_7d: round3(row.used_7d),
+    used_15d: round3(row.used_15d),
+    used_30d: round3(row.used_30d)
+  }));
 }
 
 function aggregateRows(rows) {
@@ -679,9 +721,11 @@ router.get('/', verifySession, requirePasswordChangeComplete, (req, res) => {
       image_url: toImageUrl(row.image_path)
     }));
     const total = db.prepare(countSql).get().count;
+    const topProducts = fetchTopUsedProducts(7);
 
     res.json({
       entries: rows,
+      top_products: topProducts,
       pagination: {
         page,
         limit,

@@ -27,9 +27,12 @@ const insertVisitorStmt = db.prepare(`
     os_name,
     user_agent,
     referer,
-    accept_language
+    accept_language,
+    country_code,
+    city,
+    timezone
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 function clampText(value, maxLen = 512) {
@@ -54,6 +57,40 @@ function normalizeIp(value) {
 function extractClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   return normalizeIp(forwarded || req.ip || req.socket?.remoteAddress || '');
+}
+
+function normalizeCountryCode(value) {
+  const code = String(value || '').trim().toUpperCase();
+  if (!code || code === 'XX' || code === 'T1') {
+    return null;
+  }
+  return code.slice(0, 2);
+}
+
+function detectCountryCode(req) {
+  return normalizeCountryCode(
+    req.headers['cf-ipcountry'] ||
+      req.headers['x-vercel-ip-country'] ||
+      req.headers['x-country-code']
+  );
+}
+
+function detectCity(req) {
+  return clampText(
+    req.headers['cf-ipcity'] ||
+      req.headers['x-vercel-ip-city'] ||
+      req.headers['x-city'],
+    128
+  );
+}
+
+function detectTimezone(req) {
+  return clampText(
+    req.headers['cf-timezone'] ||
+      req.headers['x-vercel-ip-timezone'] ||
+      req.headers['x-timezone'],
+    64
+  );
 }
 
 function detectDeviceType(userAgentRaw) {
@@ -158,6 +195,9 @@ function visitorTracker(req, _res, next) {
     const pathOnly = clampText(req.path || '/', 512);
     const queryString = clampText(req.originalUrl || '', 1024);
     const ipAddress = clampText(extractClientIp(req), 64);
+    const countryCode = detectCountryCode(req);
+    const city = detectCity(req);
+    const timezone = detectTimezone(req);
 
     insertVisitorStmt.run(
       ipAddress,
@@ -170,7 +210,10 @@ function visitorTracker(req, _res, next) {
       detectOs(userAgent),
       userAgent,
       referer,
-      acceptLanguage
+      acceptLanguage,
+      countryCode,
+      city,
+      timezone
     );
   } catch (err) {
     console.error('Visitor tracking error:', err.message);

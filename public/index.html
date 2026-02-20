@@ -41,12 +41,6 @@
     </aside>
 
     <div class="content-shell">
-      <header class="app-header">
-      <div class="title-block">
-        <p class="eyebrow">Boston Drink & Dessert</p>
-        <img class="header-logo" src="images/boston-logo.png" alt="Boston Drink & Dessert" loading="lazy" />
-      </div>
-      </header>
 
       <section id="passwordGate" class="panel hidden password-panel">
     <h2>Şifre Güncelleme Gerekli</h2>
@@ -251,6 +245,7 @@
             <tr>
               <th>Tarih</th>
               <th>IP</th>
+              <th>Konum</th>
               <th>Cihaz</th>
               <th>Tarayıcı / OS</th>
               <th>Sayfa</th>
@@ -278,7 +273,7 @@
               <button id="loadUsageBtn" class="btn subtle" type="button">Kayıtları Yenile</button>
             </div>
           </div>
-          <p class="hint">Stok düşürüldüğünde, ürünün ne zaman ve ne kadar kullanıldığı burada görünür.</p>
+          <p class="hint">Stok düşürüldüğünde, ürünün ne zaman ve ne kadar kullanıldığı burada görünür. Saatler İstanbul (TRT) saatine göre gösterilir.</p>
 
           <div id="usageInsightsBox" class="usage-insights">
             <div class="usage-cards">
@@ -303,6 +298,10 @@
                 <small id="usageChocoUnit" class="hint">Birim: -</small>
               </article>
             </div>
+            <div class="usage-top-products">
+              <h3>En Çok Kullanılan 7 Ürün</h3>
+              <div id="usageTopProducts" class="usage-top-track"></div>
+            </div>
             <p id="usageAiSummary" class="hint usage-ai-summary">Kullanım özeti yükleniyor...</p>
             <div id="usageAiReport" class="usage-ai-report hidden"></div>
           </div>
@@ -324,6 +323,18 @@
           </div>
         </section>
       </main>
+
+      <footer class="site-footer">
+        <div class="site-footer__inner">
+          <span class="site-footer__owner">Umut Pınarbaşı</span>
+          <a class="site-footer__wa" href="https://wa.me/905491666634" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp ile iletişime geç">
+            <svg class="site-footer__wa-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M12.04 2.003A9.94 9.94 0 0 0 3.57 17.18L2 22l4.97-1.54A9.95 9.95 0 1 0 12.04 2.003Zm5.8 13.97c-.24.67-1.39 1.28-1.95 1.36c-.5.07-1.13.1-1.83-.12c-.42-.13-.95-.3-1.63-.6c-2.88-1.24-4.75-4.14-4.9-4.34c-.14-.2-1.17-1.56-1.17-2.98c0-1.42.74-2.11 1-2.4c.26-.3.57-.37.76-.37c.2 0 .38.01.55.02c.18.01.42-.07.65.48c.24.57.82 1.98.89 2.13c.08.16.13.35.03.56c-.1.2-.15.33-.3.5c-.14.17-.3.37-.43.5c-.14.14-.28.28-.12.56c.16.28.72 1.19 1.55 1.93c1.07.95 1.98 1.25 2.26 1.39c.28.14.44.12.6-.07c.2-.24.8-.94 1.01-1.26c.2-.31.41-.26.69-.16c.28.1 1.8.85 2.1 1c.3.15.5.22.57.34c.07.11.07.67-.17 1.34Z"/>
+            </svg>
+            WhatsApp: +90 549 166 66 34
+          </a>
+        </div>
+      </footer>
     </div>
   </div>
 

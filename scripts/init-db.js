@@ -139,6 +139,9 @@ db.exec(`
     user_agent TEXT,
     referer TEXT,
     accept_language TEXT,
+    country_code TEXT,
+    city TEXT,
+    timezone TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -152,6 +155,7 @@ db.exec(`
   CREATE INDEX idx_sessions_user ON sessions(user_id);
   CREATE INDEX idx_visitor_events_created_at ON visitor_events(created_at);
   CREATE INDEX idx_visitor_events_ip_created ON visitor_events(ip_address, created_at);
+  CREATE INDEX idx_visitor_events_country_created ON visitor_events(country_code, created_at);
 
   CREATE VIEW v_stock_totals AS
   SELECT

@@ -93,6 +93,7 @@ const els = {
   usage30dWeekly: document.getElementById('usage30dWeekly'),
   usageChoco30d: document.getElementById('usageChoco30d'),
   usageChocoUnit: document.getElementById('usageChocoUnit'),
+  usageTopProducts: document.getElementById('usageTopProducts'),
   usageAiSummary: document.getElementById('usageAiSummary'),
   usageAiReport: document.getElementById('usageAiReport'),
 
@@ -773,7 +774,7 @@ async function loadLogs() {
         : '<div class="log-thumb"></div>';
       return `
         <tr>
-          <td class="mono">${escapeHtml(log.created_at || '')}</td>
+          <td class="mono">${escapeHtml(formatDateTimeWithWeekday(log.created_at))}</td>
           <td>${escapeHtml(log.username || 'system')}</td>
           <td class="mono">${escapeHtml(log.action)}</td>
           <td>
@@ -814,10 +815,13 @@ function visitorRowTemplate(visitor) {
   const os = visitor.os_name || '-';
   const page = visitor.query_string || visitor.path || '-';
   const referer = visitor.referer || '-';
+  const locationParts = [visitor.country_code, visitor.city, visitor.timezone].filter(Boolean);
+  const location = locationParts.length ? locationParts.join(' • ') : '-';
   return `
     <tr>
-      <td class="mono">${escapeHtml(visitor.created_at || '')}</td>
+      <td class="mono">${escapeHtml(formatDateTimeWithWeekday(visitor.created_at))}</td>
       <td class="mono">${escapeHtml(visitor.ip_address || '-')}</td>
+      <td>${escapeHtml(location)}</td>
       <td>${escapeHtml(formatVisitorDevice(visitor.device_type))}</td>
       <td>${escapeHtml(`${browser} / ${os}`)}</td>
       <td class="mono">${escapeHtml(page)}</td>
@@ -838,7 +842,7 @@ function resetVisitorSummary() {
     els.visitorDeviceHint.textContent = 'Cihaz dağılımı yüklenmedi.';
   }
   if (els.visitorsTableBody) {
-    els.visitorsTableBody.innerHTML = '<tr><td colspan="6"><small>Kayıt bulunamadı.</small></td></tr>';
+    els.visitorsTableBody.innerHTML = '<tr><td colspan="7"><small>Kayıt bulunamadı.</small></td></tr>';
   }
 }
 
@@ -855,10 +859,14 @@ function renderVisitorSummary(summary) {
   const deviceText = (summary.devices || [])
     .map((item) => `${formatVisitorDevice(item.device_type)}: ${numberTR(item.visits)}`)
     .join(' • ');
+  const countryText = (summary.countries || [])
+    .filter((item) => item.country_code && item.country_code !== 'unknown')
+    .map((item) => `${item.country_code}: ${numberTR(item.visits)}`)
+    .join(' • ');
 
   if (els.visitorDeviceHint) {
     els.visitorDeviceHint.textContent = deviceText
-      ? `Son 30 gün cihaz dağılımı: ${deviceText}`
+      ? `Son 30 gün cihaz dağılımı: ${deviceText}${countryText ? ` | Ülke dağılımı: ${countryText}` : ''}`
       : 'Cihaz dağılımı verisi yok.';
   }
 }
@@ -880,7 +888,7 @@ async function loadVisitors() {
 
   const visitors = listData.visitors || [];
   if (!visitors.length) {
-    els.visitorsTableBody.innerHTML = '<tr><td colspan="6"><small>Kayıt bulunamadı.</small></td></tr>';
+    els.visitorsTableBody.innerHTML = '<tr><td colspan="7"><small>Kayıt bulunamadı.</small></td></tr>';
     return;
   }
   els.visitorsTableBody.innerHTML = visitors.map(visitorRowTemplate).join('');
@@ -893,7 +901,7 @@ function usageRowTemplate(entry) {
 
   return `
     <tr>
-      <td class="mono">${escapeHtml(entry.created_at || '')}</td>
+      <td class="mono">${escapeHtml(formatDateTimeWithWeekday(entry.created_at))}</td>
       <td>
         <div class="usage-product">
           ${imageHtml}
@@ -909,6 +917,45 @@ function usageRowTemplate(entry) {
       <td>${escapeHtml(entry.username || 'system')}</td>
     </tr>
   `;
+}
+
+function usageTopProductTemplate(item, index) {
+  const imageHtml = item.image_url
+    ? `<img class="log-thumb" src="${escapeHtml(resolveAssetUrl(item.image_url))}" alt="${escapeHtml(item.name || '')}" loading="lazy" />`
+    : '<div class="log-thumb"></div>';
+
+  return `
+    <article class="usage-top-card">
+      <div class="usage-top-head">
+        <span class="usage-top-rank">#${index + 1}</span>
+      </div>
+      <div class="usage-product">
+        ${imageHtml}
+        <div>
+          <p class="log-title">${escapeHtml(`${item.stock_code || ''} ${item.name || ''}`.trim())}</p>
+          <p class="log-subtitle">${escapeHtml(item.unit || 'adet')}</p>
+        </div>
+      </div>
+      <dl class="usage-top-stats">
+        <div><dt>7 Gün</dt><dd>${escapeHtml(formatQuantityWithUnit(item.used_7d, item.unit))}</dd></div>
+        <div><dt>15 Gün</dt><dd>${escapeHtml(formatQuantityWithUnit(item.used_15d, item.unit))}</dd></div>
+        <div><dt>30 Gün</dt><dd>${escapeHtml(formatQuantityWithUnit(item.used_30d, item.unit))}</dd></div>
+      </dl>
+    </article>
+  `;
+}
+
+function renderUsageTopProducts(items) {
+  if (!els.usageTopProducts) {
+    return;
+  }
+
+  if (!Array.isArray(items) || !items.length) {
+    els.usageTopProducts.innerHTML = '<p class="hint">Son 30 gün için kullanım kaydı bulunamadı.</p>';
+    return;
+  }
+
+  els.usageTopProducts.innerHTML = items.map(usageTopProductTemplate).join('');
 }
 
 function normalizeSearchText(value) {
@@ -942,6 +989,41 @@ function parseSqliteDate(value) {
   }
 
   return null;
+}
+
+const ISTANBUL_TIME_ZONE = 'Europe/Istanbul';
+const ISTANBUL_WEEKDAY_FORMATTER = new Intl.DateTimeFormat('tr-TR', {
+  weekday: 'long',
+  timeZone: ISTANBUL_TIME_ZONE
+});
+const ISTANBUL_DATE_TIME_PARTS = new Intl.DateTimeFormat('tr-TR', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+  timeZone: ISTANBUL_TIME_ZONE
+});
+
+function formatDateTimeWithWeekday(value) {
+  const date = parseSqliteDate(value);
+  if (!date) {
+    return value ? String(value) : '-';
+  }
+
+  const parts = Object.fromEntries(
+    ISTANBUL_DATE_TIME_PARTS
+      .formatToParts(date)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value])
+  );
+
+  const weekdayRaw = ISTANBUL_WEEKDAY_FORMATTER.format(date);
+  const weekday = weekdayRaw ? `${weekdayRaw.charAt(0).toUpperCase()}${weekdayRaw.slice(1)}` : '';
+
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}${weekday ? ` ${weekday}` : ''}`;
 }
 
 function usageTotalsByUnit(entries, maxDays, nowMs) {
@@ -1055,7 +1137,9 @@ async function loadUsage() {
 
   const data = await api('/api/usage?limit=200');
   const entries = data.entries || [];
+  const topProducts = data.top_products || [];
   state.usageEntries = entries;
+  renderUsageTopProducts(topProducts);
 
   if (!entries.length) {
     els.usageTableBody.innerHTML = '<tr><td colspan="6"><small>Kayıt bulunamadı.</small></td></tr>';
@@ -1100,6 +1184,7 @@ function renderUsageInsights(insights) {
 }
 
 function resetUsageInsights() {
+  renderUsageTopProducts([]);
   renderUsageInsights({
     by_period: {
       d3: { total_used: 0, unit: 'adet', daily_avg: 0 },

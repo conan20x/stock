@@ -49,6 +49,17 @@ router.get(
         ORDER BY visits DESC
       `).all();
 
+      const countryRows = db.prepare(`
+        SELECT
+          COALESCE(country_code, 'unknown') AS country_code,
+          COUNT(*) AS visits
+        FROM visitor_events
+        WHERE datetime(created_at) >= datetime('now', '-30 day')
+        GROUP BY COALESCE(country_code, 'unknown')
+        ORDER BY visits DESC
+        LIMIT 8
+      `).all();
+
       res.json({
         summary: {
           total_visits: Number(summary.total_visits || 0),
@@ -56,7 +67,8 @@ router.get(
           visits_today: Number(summary.visits_today || 0),
           visits_last_24h: Number(summary.visits_last_24h || 0),
           last_visit_at: summary.last_visit_at || null,
-          devices: deviceRows
+          devices: deviceRows,
+          countries: countryRows
         }
       });
     } catch (err) {
@@ -112,6 +124,9 @@ router.get('/', verifySession, requirePasswordChangeComplete, requirePermission(
         device_type,
         browser_name,
         os_name,
+        country_code,
+        city,
+        timezone,
         user_agent,
         referer,
         accept_language,
