@@ -103,6 +103,14 @@ function round3(value) {
   return Number(numeric.toFixed(3));
 }
 
+function parsePositiveInteger(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
 function formatCompact(value) {
   const numeric = Number(value || 0);
   if (!Number.isFinite(numeric)) {
@@ -674,6 +682,49 @@ router.post('/ai-analysis', verifySession, requirePasswordChangeComplete, isAdmi
   } catch (err) {
     console.error('Usage AI analysis error:', err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/:id', verifySession, requirePasswordChangeComplete, isAdmin, (req, res) => {
+  try {
+    const logId = parsePositiveInteger(req.params.id);
+    if (!logId) {
+      return res.status(400).json({ error: 'Geçersiz kayıt kimliği' });
+    }
+
+    const existing = db.prepare(`
+      SELECT
+        l.id,
+        l.record_id,
+        l.created_at,
+        l.old_values,
+        l.new_values,
+        p.stock_code,
+        p.name
+      FROM activity_logs l
+      LEFT JOIN products p ON p.id = l.record_id
+      WHERE
+        l.id = ?
+        AND ${USAGE_DECREASE_FILTER}
+    `).get(logId);
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Kullanım kaydı bulunamadı' });
+    }
+
+    db.prepare('DELETE FROM activity_logs WHERE id = ?').run(logId);
+
+    return res.json({
+      ok: true,
+      deleted_id: logId,
+      product: {
+        stock_code: existing.stock_code || '',
+        name: existing.name || ''
+      }
+    });
+  } catch (err) {
+    console.error('Usage delete error:', err);
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 

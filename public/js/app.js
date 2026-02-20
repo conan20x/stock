@@ -84,6 +84,7 @@ const els = {
   usagePanel: document.getElementById('usagePanel'),
   runUsageAiBtn: document.getElementById('runUsageAiBtn'),
   loadUsageBtn: document.getElementById('loadUsageBtn'),
+  usageActionHeader: document.getElementById('usageActionHeader'),
   usageTableBody: document.getElementById('usageTableBody'),
   usage3dTotal: document.getElementById('usage3dTotal'),
   usage3dDaily: document.getElementById('usage3dDaily'),
@@ -418,6 +419,9 @@ function updateAuthUI() {
   }
   if (els.usagePanel) {
     els.usagePanel.classList.toggle('hidden', !(isUsageRoute && usageAllowed));
+  }
+  if (els.usageActionHeader) {
+    els.usageActionHeader.classList.toggle('hidden', !adminAllowed);
   }
   if (els.runUsageAiBtn) {
     const canRunAi = Boolean(isUsageRoute && usageAllowed && isAdmin());
@@ -898,6 +902,18 @@ function usageRowTemplate(entry) {
   const imageHtml = entry.image_url
     ? `<img class="log-thumb" src="${escapeHtml(resolveAssetUrl(entry.image_url))}" alt="${escapeHtml(entry.name || '')}" loading="lazy" />`
     : '<div class="log-thumb"></div>';
+  const showDeleteAction = isAdmin();
+  const actionCell = showDeleteAction
+    ? `
+      <td>
+        <div class="row-actions">
+          <button class="btn danger usage-delete-btn" data-action="delete-usage" data-id="${escapeHtml(entry.id)}" type="button">
+            Sil
+          </button>
+        </div>
+      </td>
+    `
+    : '';
 
   return `
     <tr>
@@ -915,8 +931,34 @@ function usageRowTemplate(entry) {
       <td class="mono">${escapeHtml(formatQuantityWithUnit(entry.old_quantity, entry.unit))}</td>
       <td class="mono">${escapeHtml(formatQuantityWithUnit(entry.new_quantity, entry.unit))}</td>
       <td>${escapeHtml(entry.username || 'system')}</td>
+      ${actionCell}
     </tr>
   `;
+}
+
+function usageTableColspan() {
+  return isAdmin() ? 7 : 6;
+}
+
+async function deleteUsageEntry(entryId) {
+  if (!isAdmin()) {
+    return;
+  }
+
+  const id = Number(entryId);
+  if (!Number.isFinite(id) || id <= 0) {
+    showToast('Geçersiz kullanım kaydı.', 'error');
+    return;
+  }
+
+  const confirmed = window.confirm('Bu kullanım kaydı geçmişten silinsin mi?');
+  if (!confirmed) {
+    return;
+  }
+
+  await api(`/api/usage/${id}`, { method: 'DELETE' });
+  showToast('Kullanım kaydı silindi.', 'success');
+  await Promise.all([loadUsage(), loadUsageInsights()]);
 }
 
 function usageTopProductTemplate(item, index) {
@@ -1142,7 +1184,7 @@ async function loadUsage() {
   renderUsageTopProducts(topProducts);
 
   if (!entries.length) {
-    els.usageTableBody.innerHTML = '<tr><td colspan="6"><small>Kayıt bulunamadı.</small></td></tr>';
+    els.usageTableBody.innerHTML = `<tr><td colspan="${usageTableColspan()}"><small>Kayıt bulunamadı.</small></td></tr>`;
     resetUsageInsights();
     resetUsageAiReport();
     return;
@@ -2020,6 +2062,15 @@ function bindEvents() {
   if (els.loadUsageBtn) {
     els.loadUsageBtn.addEventListener('click', () => {
       Promise.all([loadUsage(), loadUsageInsights()]).catch((err) => showToast(err.message, 'error'));
+    });
+  }
+  if (els.usageTableBody) {
+    els.usageTableBody.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-action="delete-usage"]');
+      if (!button) {
+        return;
+      }
+      deleteUsageEntry(button.dataset.id).catch((err) => showToast(err.message, 'error'));
     });
   }
   if (els.runUsageAiBtn) {
