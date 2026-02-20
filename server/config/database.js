@@ -54,7 +54,6 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_visitor_events_created_at ON visitor_events(created_at);
   CREATE INDEX IF NOT EXISTS idx_visitor_events_ip_created ON visitor_events(ip_address, created_at);
-  CREATE INDEX IF NOT EXISTS idx_visitor_events_country_created ON visitor_events(country_code, created_at);
 `);
 
 function ensureTableColumn(tableName, columnName, columnDefinition) {
@@ -68,5 +67,6 @@ function ensureTableColumn(tableName, columnName, columnDefinition) {
 ensureTableColumn('visitor_events', 'country_code', 'TEXT');
 ensureTableColumn('visitor_events', 'city', 'TEXT');
 ensureTableColumn('visitor_events', 'timezone', 'TEXT');
+db.exec('CREATE INDEX IF NOT EXISTS idx_visitor_events_country_created ON visitor_events(country_code, created_at);');
 
 module.exports = db;
